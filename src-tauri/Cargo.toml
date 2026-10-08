@@ -1,0 +1,32 @@
+[package]
+name = "openschool_desktop"
+version = "0.1.0"
+edition = "2024"
+description = "OpenSchool desktop client"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+openschool_bridge = { path = "../bridge" }
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["time"] }
+tauri-plugin-clipboard-manager = "2"
+zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
+tauri-plugin-dialog = "2"
+
+# Secret store backend per OS: Secret Service (KWallet / GNOME Keyring) and Windows Credential Manager.
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3", features = ["sync-secret-service", "crypto-rust"] }
+dbus = "0.9"
+
+[target.'cfg(windows)'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true

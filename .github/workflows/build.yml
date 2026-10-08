@@ -1,0 +1,58 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    # The 32-bit Windows build is best-effort: a failure there must not hide the others.
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-x64,   os: ubuntu-latest,  target: x86_64-unknown-linux-gnu, exe: openschool_desktop,     experimental: false }
+          - { name: windows-x64, os: windows-latest, target: x86_64-pc-windows-msvc,   exe: openschool_desktop.exe, experimental: false }
+          - { name: windows-x86, os: windows-latest, target: i686-pc-windows-msvc,     exe: openschool_desktop.exe, experimental: true }
+    steps:
+      # The bridge is a git submodule (bridge/), pinned to the commit recorded in this repository.
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Linux system libraries (WebKitGTK, GTK, D-Bus)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev libgtk-3-dev libsoup-3.0-dev librsvg2-dev libxdo-dev libdbus-1-dev pkg-config
+
+      - name: NASM (needed by aws-lc-rs on Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/setup-nasm@v1
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+          key: ${{ matrix.target }}
+
+      - name: Test
+        working-directory: src-tauri
+        run: cargo test --target ${{ matrix.target }}
+
+      - name: Build
+        working-directory: src-tauri
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openschool-desktop-${{ matrix.name }}
+          path: src-tauri/target/${{ matrix.target }}/release/${{ matrix.exe }}
+          if-no-files-found: error

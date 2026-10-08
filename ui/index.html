@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenSchool</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="bglayer" aria-hidden="true"></div>
+<div id="boot" class="boot">Загрузка…</div>
+
+<div id="login" class="center" hidden>
+  <div class="card">
+    <h1>OpenSchool</h1>
+    <p>Войдите через Госуслуги. Пароль вводится в окне Госуслуг, приложение его не видит.</p>
+    <button class="btn" id="loginbtn">Войти через Госуслуги</button>
+    <div class="err" id="loginerr" role="alert"></div>
+  </div>
+</div>
+
+<div id="app" hidden style="display:contents">
+  <header class="bar">
+    <div class="logo">OpenSchool</div>
+    <nav aria-label="Разделы">
+      <span class="nav-pill" id="nav-pill" aria-hidden="true"></span>
+      <button id="nav-home" aria-current="page">Главная</button>
+      <button id="nav-schedule">Расписание</button>
+      <button id="nav-tasks">Задания</button>
+      <button id="nav-marks">Оценки</button>
+      <button id="nav-settings">Настройки</button>
+    </nav>
+    <div class="sp"></div>
+    <button class="btn ghost" id="logout">Выйти</button>
+  </header>
+  <div class="shell" id="homeview">
+    <div class="col">
+      <section class="box me" aria-label="Ученик"><div class="ava" id="ava"></div><div><b id="sname"></b><span id="sclass"></span></div></section>
+      <section class="box" aria-label="Последние оценки"><h2>Последние оценки</h2><div class="marks" id="marks" tabindex="0"></div></section>
+      <section class="box sched" aria-label="Расписание" id="schedbox">
+        <div class="dn">
+          <button id="prev" aria-label="Предыдущий день">‹</button>
+          <div class="lbl" aria-live="polite"><b id="dlabel"></b><span id="dsub"></span></div>
+          <button class="today" id="gotoday">Сегодня</button>
+          <button id="next" aria-label="Следующий день">›</button>
+        </div>
+        <div class="list" id="sched"></div>
+      </section>
+    </div>
+    <main class="box main" id="main"></main>
+  </div>
+  <div class="page wide" id="schedule" hidden>
+    <section class="box main wk" aria-label="Расписание на неделю">
+      <div class="dn">
+        <button id="wprev" aria-label="Предыдущая неделя">‹</button>
+        <div class="lbl" aria-live="polite"><b id="wlabel"></b><span id="wsub"></span></div>
+        <button class="today" id="wtoday">Эта неделя</button>
+        <button id="wnext" aria-label="Следующая неделя">›</button>
+        <button class="today" id="wcal" aria-haspopup="dialog" aria-expanded="false" aria-controls="cal"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 7h12M5.5 1.5v3M10.5 1.5v3"/></svg>Календарь</button>
+      </div>
+      <div class="wk-grid" id="wgrid"></div>
+    </section>
+  </div>
+  <div class="page wide" id="tasksview" hidden>
+    <section class="box main tk" aria-label="Задания">
+      <div class="gr-head">
+        <div class="seg" id="tk-tabs" role="group" aria-label="Период">
+          <button data-p="up" aria-pressed="true">Предстоящие</button>
+          <button data-p="past" aria-pressed="false">Прошедшие</button>
+        </div>
+        <label class="tk-only"><input type="checkbox" id="tk-open"> Только невыполненные</label>
+        <div class="gr-sum" id="tk-sum" aria-live="polite"></div>
+      </div>
+      <div class="dn">
+        <button id="tk-prev" aria-label="Предыдущие 4 дня">‹</button>
+        <div class="lbl" aria-live="polite"><b id="tk-label"></b><span id="tk-lsub"></span></div>
+        <button id="tk-next" aria-label="Следующие 4 дня">›</button>
+      </div>
+      <div class="tk-body" id="tk-body"></div>
+    </section>
+  </div>
+  <div class="page wide" id="marksview" hidden>
+    <section class="box main gr" aria-label="Оценки">
+      <div class="gr-head">
+        <div class="seg" id="gr-tabs" role="group" aria-label="Период">
+          <button data-p="1" aria-pressed="false">1 четверть</button>
+          <button data-p="2" aria-pressed="false">2 четверть</button>
+          <button data-p="3" aria-pressed="false">3 четверть</button>
+          <button data-p="4" aria-pressed="false">4 четверть</button>
+          <button data-p="year" aria-pressed="false">Итог за год</button>
+        </div>
+        <div class="gr-sum" id="gr-sum" aria-live="polite"></div>
+      </div>
+      <div class="gr-body" id="gr-body"></div>
+    </section>
+  </div>
+  <div class="page" id="settings" hidden>
+    <div class="setwrap">
+      <nav class="box setnav" aria-label="Разделы настроек">
+        <button data-sec="appearance" aria-current="true">Оформление</button>
+        <button data-sec="account">Аккаунт</button>
+        <button data-sec="about">О приложении</button>
+      </nav>
+      <section class="box main setbody">
+        <div data-pane="appearance">
+          <h1>Оформление</h1>
+          <div class="sub">Внешний вид приложения</div>
+          <div class="block"><h3>Стиль</h3>
+            <div class="tcards" role="group" aria-label="Стиль">
+              <button class="tcard" data-s="classic" aria-pressed="false">
+                <span class="tprev" data-style="classic" data-scheme="light"><span class="pp"><span class="pl"></span><span class="pl s"></span><span class="pc"><i class="chip c5">5</i><i class="chip c4">4</i><i class="chip c3">3</i><i class="chip c2">2</i></span></span></span>
+                <b>Классический</b><small>Спокойный и аккуратный</small></button>
+              <button class="tcard" data-s="terminal" aria-pressed="false">
+                <span class="tprev" data-style="terminal" data-scheme="light"><span class="pp"><span class="pl"></span><span class="pl s"></span><span class="pc"><i class="chip c5">5</i><i class="chip c4">4</i><i class="chip c3">3</i><i class="chip c2">2</i></span></span></span>
+                <b>Терминал</b><small>Моноширинный шрифт, всегда тёмный</small></button>
+              <button class="tcard" data-s="sunrise" aria-pressed="false">
+                <span class="tprev" data-style="sunrise" data-scheme="light"><span class="pp"><span class="pl"></span><span class="pl s"></span><span class="pc"><i class="chip c5">5</i><i class="chip c4">4</i><i class="chip c3">3</i><i class="chip c2">2</i></span></span></span>
+                <b>Рассвет</b><small>Мягкий градиент и стекло</small></button>
+            </div>
+          </div>
+          <div class="block"><h3>Тема</h3>
+            <div class="seg" id="scheme" role="group" aria-label="Тема">
+              <button data-p="system" aria-pressed="false">Системная</button>
+              <button data-p="light" aria-pressed="false">Светлая</button>
+              <button data-p="dark" aria-pressed="false">Тёмная</button>
+            </div>
+            <div class="hint muted" id="scheme-hint" aria-live="polite"></div>
+          </div>
+          <div class="block"><h3>Акцентный цвет</h3>
+            <div class="swatches" id="accent" role="group" aria-label="Акцентный цвет">
+              <button class="sw-default" data-a="default" aria-pressed="true">Как в стиле</button>
+              <button class="sw" data-a="blue" aria-pressed="false" aria-label="Синий" title="Синий"></button>
+              <button class="sw" data-a="teal" aria-pressed="false" aria-label="Бирюзовый" title="Бирюзовый"></button>
+              <button class="sw" data-a="green" aria-pressed="false" aria-label="Зелёный" title="Зелёный"></button>
+              <button class="sw" data-a="amber" aria-pressed="false" aria-label="Янтарный" title="Янтарный"></button>
+              <button class="sw" data-a="red" aria-pressed="false" aria-label="Красный" title="Красный"></button>
+              <button class="sw" data-a="pink" aria-pressed="false" aria-label="Розовый" title="Розовый"></button>
+              <button class="sw" data-a="purple" aria-pressed="false" aria-label="Фиолетовый" title="Фиолетовый"></button>
+              <button class="sw sw-custom" id="accent-custom-btn" aria-label="Свой цвет" title="Свой цвет" aria-expanded="false" aria-controls="cpicker"></button>
+            </div>
+            <div class="cpicker" id="cpicker" role="group" aria-label="Свой цвет" hidden>
+              <div class="cp-plane" id="cp-plane" tabindex="0" role="slider" aria-label="Насыщенность и яркость"><i class="cp-knob" id="cp-knob"></i></div>
+              <div class="cp-side">
+                <input type="range" class="cp-hue" id="cp-hue" min="0" max="360" step="1" value="210" aria-label="Оттенок">
+                <div class="cp-row">
+                  <span class="cp-preview" id="cp-preview"></span>
+                  <input type="text" class="cp-hex" id="cp-hex" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Цвет в формате #rrggbb" placeholder="#rrggbb">
+                </div>
+                <div class="cp-row">
+                  <button class="btn ghost" id="cp-eye" hidden>Пипетка</button>
+                  <button class="btn ghost" id="cp-copy">Копировать</button>
+                  <button class="btn ghost" id="cp-close">Готово</button>
+                </div>
+                <div class="hint muted" id="cp-msg" aria-live="polite"></div>
+              </div>
+            </div>
+            <div class="hint muted" id="accent-hint" aria-live="polite"></div>
+          </div>
+          <div class="block"><h3>Фон</h3>
+            <div class="seg" id="bgmode" role="group" aria-label="Фон">
+              <button data-m="default" aria-pressed="true">Как в стиле</button>
+              <button data-m="solid" aria-pressed="false">Сплошной</button>
+              <button data-m="gradient" aria-pressed="false">Градиент</button>
+              <button data-m="media" aria-pressed="false">Картинка / видео</button>
+            </div>
+            <div class="swatches bgsw" id="bg-solid" role="group" aria-label="Цвет фона" hidden></div>
+            <div id="bg-grad" hidden>
+              <div class="swatches bgsw" id="bg-presets" role="group" aria-label="Готовые градиенты"></div>
+              <div class="bg-own">
+                <span class="bg-own-t">Свой:</span>
+                <button class="sw" id="bg-a" aria-label="Первый цвет градиента" title="Первый цвет" aria-expanded="false"></button>
+                <button class="sw" id="bg-b" aria-label="Второй цвет градиента" title="Второй цвет" aria-expanded="false"></button>
+                <label class="bg-angle">Угол <input type="range" id="bg-angle" min="0" max="360" step="5" value="160" aria-label="Угол градиента"></label>
+                <span class="bg-bar" id="bg-bar"></span>
+              </div>
+            </div>
+            <div id="bg-media" hidden>
+              <div class="bg-own">
+                <button class="btn" id="bg-pick">Выбрать файл…</button>
+                <input type="file" id="bg-file" accept=".png,.jpg,.jpeg,.webp,.gif,.avif,.mp4,.webm,image/*,video/mp4,video/webm" hidden>
+                <button class="btn ghost" id="bg-remove" hidden>Убрать</button>
+                <span class="muted" id="bg-name"></span>
+              </div>
+              <div class="bg-own">
+                <label class="bg-angle">Затемнение <input type="range" id="bg-dim" min="0" max="80" step="5" value="35" aria-label="Затемнение"></label>
+                <label class="bg-angle">Размытие <input type="range" id="bg-blur" min="0" max="20" step="1" value="0" aria-label="Размытие"></label>
+              </div>
+              <div class="hint muted">PNG, JPG, WebP, GIF, AVIF, MP4, WebM, до 300 МБ. Видео и GIF идут по кругу без звука и останавливаются, когда окно свёрнуто. Файл копируется в папку данных приложения.</div>
+            </div>
+            <div id="bg-picker-host"></div>
+            <div class="hint muted" id="bg-hint" aria-live="polite"></div>
+          </div>
+          <div class="block"><h3>Перенос настроек</h3>
+            <div class="bg-own">
+              <button class="btn ghost" id="cfg-export">Экспорт в файл…</button>
+              <button class="btn ghost" id="cfg-import">Импорт из файла…</button>
+            </div>
+            <div class="hint muted" id="cfg-msg" aria-live="polite">Файл .cfg (обычный ZIP-архив): стиль, тема, акцентный цвет, фон и сам файл фона. Оценки и отметки о домашних заданиях в него не входят.</div>
+          </div>
+        </div>
+        <div data-pane="account" hidden>
+          <h1>Аккаунт</h1>
+          <div class="sub">Ученик, к которому привязан вход</div>
+          <div class="block"><div id="set-acc" style="margin-bottom:12px"></div><button class="btn ghost" id="set-logout">Выйти из аккаунта</button></div>
+        </div>
+        <div data-pane="about" hidden>
+          <h1>О приложении</h1>
+          <div class="sub">Версия и источник данных</div>
+          <div class="block"><div id="set-about" class="muted"></div></div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+</div>
+<!-- The calendar lives at the top level, next to #app, so no overflow of the page can clip it; JS places it under its button. -->
+<div class="cal" id="cal" role="dialog" aria-label="Календарь" hidden>
+  <div class="cal-head">
+    <button id="cal-prev" aria-label="Предыдущий месяц">‹</button>
+    <b id="cal-title" aria-live="polite"></b>
+    <button id="cal-next" aria-label="Следующий месяц">›</button>
+  </div>
+  <div class="cal-grid" id="cal-grid"></div>
+  <div class="cal-foot"><button class="btn ghost" id="cal-today">Сегодня</button></div>
+</div>
+<dialog id="lessondlg" class="dlg">
+  <div class="dlg-bar"><button class="dlg-close" id="lessondlg-close" aria-label="Закрыть">×</button></div>
+  <div class="main dlg-body" id="lessondlg-body"></div>
+</dialog>
+<div id="tip" role="tooltip"></div>
+<script src="app.js"></script>
+</body>
+</html>
