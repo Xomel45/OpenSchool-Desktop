@@ -20,7 +20,7 @@ jobs:
           - { name: windows-x86, os: windows-latest, target: i686-pc-windows-msvc,     exe: openschool_desktop.exe, experimental: true }
     steps:
       # The bridge is a git submodule (bridge/), pinned to the commit recorded in this repository.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: true
 
@@ -51,7 +51,7 @@ jobs:
         working-directory: src-tauri
         run: cargo build --release --target ${{ matrix.target }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: openschool-desktop-${{ matrix.name }}
           path: src-tauri/target/${{ matrix.target }}/release/${{ matrix.exe }}
