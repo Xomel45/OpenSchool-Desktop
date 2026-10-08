@@ -36,8 +36,9 @@ pub async fn login(app: AppHandle, state: State<'_, AppState>) -> Result<bool, S
 }
 
 #[tauri::command]
-pub async fn logout(state: State<'_, AppState>) -> Result<(), String> {
+pub async fn logout(state: State<'_, AppState>, news: State<'_, crate::news::News>) -> Result<(), String> {
     store::clear();
+    news.reset();
     state.reset_client();
     Ok(())
 }

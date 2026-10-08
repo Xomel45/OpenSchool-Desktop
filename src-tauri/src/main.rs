@@ -6,11 +6,14 @@ mod commands;
 mod config_file;
 mod eyedropper;
 mod login;
+mod news;
 mod store;
+mod tray;
 
 use std::sync::{Arc, Mutex};
 
 use openschool_bridge::Client;
+use tauri::Manager;
 
 /// The bridge client holds the session cookies; it is replaced on logout.
 pub struct AppState {
@@ -35,7 +38,26 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(AppState::new())
+        .setup(|app| {
+            news::init(app.handle())?;
+            // A missing tray (some desktops have none) must not stop the app.
+            if let Err(e) = tray::build(app.handle()) {
+                eprintln!("tray unavailable: {e}");
+            }
+            Ok(())
+        })
+        .on_window_event(|window, event| {
+            // "Close to tray": only the main window, only when the user asked for it.
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event
+                && window.label() == "main"
+                && window.app_handle().state::<news::News>().settings().close_to_tray
+            {
+                api.prevent_close();
+                let _ = window.hide();
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             commands::restore_session,
             commands::login,
@@ -50,6 +72,11 @@ fn main() {
             background::clear_background,
             config_file::export_config,
             config_file::import_config,
+            news::notify_get,
+            news::notify_set,
+            news::news_feed,
+            news::news_read,
+            news::news_check_now,
         ])
         .run(tauri::generate_context!())
         .expect("error while running OpenSchool");

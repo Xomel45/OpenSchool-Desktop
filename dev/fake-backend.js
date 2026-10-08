@@ -28,11 +28,26 @@
   }
   const y = (new Date().getMonth() >= 7 ? new Date().getFullYear() : new Date().getFullYear() - 1);
   const mode = (location.hash.match(/mode=(\w+)/) || [])[1] || 'ok';
+  // notifications: the Rust side is replaced by a feed kept in memory; `#news=1` starts with three items (two unread), `#toast=1` fires a "new" event after 3 s
+  const listeners = {};
+  const nowS = Math.floor(Date.now() / 1000);
+  let feed = /news=1/.test(location.hash) ? [
+    { id: 'm:1', kind: 'mark', title: 'Алгебра', text: 'Контрольная работа · 8 октября', value: '5', date: '2026-10-08', ts: nowS - 600, read: false },
+    { id: 'h:2', kind: 'homework', title: 'Литература', text: 'Прочитать главу 5, пересказ · на 9 октября', value: null, date: '2026-10-09', ts: nowS - 3 * 3600, read: false },
+    { id: 'm:3', kind: 'mark', title: 'История', text: 'Устный ответ · 7 октября', value: '3', date: '2026-10-07', ts: nowS - 30 * 3600, read: true }] : [];
+  let notify = { marks: true, homework: true, absences: false, interval_min: 15, detail: true, close_to_tray: false };
+  window.__fakeEmit = (name, payload) => (listeners[name] || []).forEach((cb) => cb({ payload }));
+  if (/toast=1/.test(location.hash)) setTimeout(() => window.__fakeEmit('news-new', { title: 'Новая оценка: Физика — 4', body: 'Обычная отметка · 8 октября', kinds: ['mark'], value: '4' }), 3000);
   let fakeBg = null; // the "stored" background: a blob URL, shown through the fake convertFileSrc
-  window.__TAURI__ = { core: { convertFileSrc: (p) => p, invoke: async (cmd, a, opts) => {
+  window.__TAURI__ = { event: { listen: async (name, cb) => { (listeners[name] = listeners[name] || []).push(cb); return () => {}; } }, core: { convertFileSrc: (p) => p, invoke: async (cmd, a, opts) => {
     if (cmd === 'set_background') { const ext = opts && opts.headers && opts.headers.ext; if (!/^(png|jpe?g|webp|gif|avif|mp4|webm)$/.test(ext)) throw 'Этот формат не поддерживается'; fakeBg = URL.createObjectURL(new Blob([a])); return fakeBg; }
     if (cmd === 'background_path') return /bg=none/.test(location.hash) ? null : fakeBg;
     if (cmd === 'clear_background') { fakeBg = null; return null; }
+    if (cmd === 'news_feed') return { items: feed, unread: feed.filter((i) => !i.read).length };
+    if (cmd === 'news_read') { feed.forEach((i) => { if (!a.ids.length || a.ids.includes(i.id)) i.read = true; }); const u = feed.filter((i) => !i.read).length; window.__fakeEmit('news-updated', { unread: u }); return u; }
+    if (cmd === 'notify_get') return notify;
+    if (cmd === 'notify_set') { window.__notifySaved = a.settings; notify = a.settings; return notify; }
+    if (cmd === 'news_check_now') return /checkfail=1/.test(location.hash) ? Promise.reject('нет сети') : 2;
     if (cmd === 'export_config') { window.__exported = a.config; return '/tmp/openschool.cfg'; }
     if (cmd === 'import_config') { const m = (location.hash.match(/imp=(\w+)/) || [])[1]; if (m === 'cancel') return null; if (m === 'bad') return { config: '{"format":"nope"}', background: null };
       return { config: JSON.stringify({ format: 'openschool-config', version: 1, style: 'sunrise', scheme: 'dark', accent: '#aa3355', bg: { mode: 'gradient', a: '#2193B0', b: '#6DD5ED', angle: 90, dim: 999, blur: -4 } }), background: null }; }

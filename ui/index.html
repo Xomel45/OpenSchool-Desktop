@@ -31,6 +31,7 @@
       <button id="nav-settings">Настройки</button>
     </nav>
     <div class="sp"></div>
+    <button class="bell" id="bell" aria-label="Что нового" aria-haspopup="dialog" aria-expanded="false" aria-controls="feed"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 9a6 6 0 1 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><em id="bell-n" hidden>0</em></button>
     <button class="btn ghost" id="logout">Выйти</button>
   </header>
   <div class="shell" id="homeview">
@@ -98,6 +99,7 @@
     <div class="setwrap">
       <nav class="box setnav" aria-label="Разделы настроек">
         <button data-sec="appearance" aria-current="true">Оформление</button>
+        <button data-sec="notify">Уведомления</button>
         <button data-sec="account">Аккаунт</button>
         <button data-sec="about">О приложении</button>
       </nav>
@@ -198,6 +200,32 @@
             <div class="hint muted" id="cfg-msg" aria-live="polite">Файл .cfg (обычный ZIP-архив): стиль, тема, акцентный цвет, фон и сам файл фона. Оценки и отметки о домашних заданиях в него не входят.</div>
           </div>
         </div>
+        <div data-pane="notify" hidden>
+          <h1>Уведомления</h1>
+          <div class="sub">О новых оценках и заданиях, пока приложение запущено</div>
+          <div class="block"><h3>Что присылать</h3>
+            <label class="tg"><span>Новые оценки</span><input type="checkbox" role="switch" id="nt-marks"></label>
+            <label class="tg"><span>Новые домашние задания</span><input type="checkbox" role="switch" id="nt-homework"></label>
+            <label class="tg"><span>Отметки о пропусках</span><input type="checkbox" role="switch" id="nt-absences"></label>
+          </div>
+          <div class="block"><h3>Как часто проверять</h3>
+            <div class="seg" id="nt-interval" role="group" aria-label="Как часто проверять">
+              <button data-v="5" aria-pressed="false">5 мин</button><button data-v="15" aria-pressed="false">15 мин</button><button data-v="30" aria-pressed="false">30 мин</button><button data-v="60" aria-pressed="false">1 час</button>
+            </div>
+            <div class="hint muted">Проверка идёт, пока приложение запущено, в том числе свёрнутое в трей.</div>
+          </div>
+          <div class="block"><h3>Что показывать в уведомлении</h3>
+            <div class="seg" id="nt-detail" role="group" aria-label="Что показывать">
+              <button data-v="1" aria-pressed="false">Предмет и оценку</button><button data-v="0" aria-pressed="false">Только «новая оценка»</button>
+            </div>
+            <div class="hint muted">Второй вариант: текст не виден, если рядом кто-то смотрит на экран.</div>
+          </div>
+          <div class="block"><h3>Окно</h3>
+            <label class="tg"><span>Сворачивать в трей при закрытии</span><input type="checkbox" role="switch" id="nt-tray"></label>
+            <div class="hint muted">Тогда закрытое окно не останавливает проверку. Вернуть окно: значок в трее. В трее приложение завершается пунктом «Выход». Не на всех рабочих столах есть трей (в GNOME нужно расширение).</div>
+          </div>
+          <div class="block"><button class="btn ghost" id="nt-check">Проверить сейчас</button><div class="hint muted" id="nt-msg" aria-live="polite"></div></div>
+        </div>
         <div data-pane="account" hidden>
           <h1>Аккаунт</h1>
           <div class="sub">Ученик, к которому привязан вход</div>
@@ -227,6 +255,11 @@
   <div class="dlg-bar"><button class="dlg-close" id="lessondlg-close" aria-label="Закрыть">×</button></div>
   <div class="main dlg-body" id="lessondlg-body"></div>
 </dialog>
+<div class="feed" id="feed" role="dialog" aria-label="Что нового" hidden>
+  <div class="fh"><b>Что нового</b><button id="feed-readall" class="linkbtn">Прочитать всё</button></div>
+  <div id="feed-list"></div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 <div id="tip" role="tooltip"></div>
 <script src="app.js"></script>
 </body>
