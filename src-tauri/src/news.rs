@@ -278,10 +278,12 @@ impl News {
         if let Ok(mut s) = self.student.lock() {
             *s = None;
         }
+        // The file goes while the data lock is held: `absorb` checks the login under the same lock, so it either finishes
+        // before this (and its file is deleted here) or sees "logged out" and writes nothing.
         if let Ok(mut d) = self.data.lock() {
             *d = Data::default();
+            let _ = std::fs::remove_file(self.dir.join("news.json"));
         }
-        let _ = std::fs::remove_file(self.dir.join("news.json"));
     }
 
     fn unread(&self) -> usize {
@@ -290,14 +292,16 @@ impl News {
 
     /// Take in what a check found. Returns the items that are new and wanted (empty on the very first run).
     fn absorb(&self, found: Vec<Event>, now: i64) -> Vec<Event> {
-        if !self.active.load(Ordering::SeqCst) {
-            return Vec::new(); // a check that was in flight while the user logged out must not bring the old account's file back
-        }
         let settings = self.settings();
         let mut data = match self.data.lock() {
             Ok(d) => d,
             Err(_) => return Vec::new(),
         };
+        // Checked under the lock (see `reset`): a check that was in flight while the user logged out must not bring the
+        // old account's file back, not even if the logout lands right between the check and the lock.
+        if !self.active.load(Ordering::SeqCst) {
+            return Vec::new();
+        }
         let first = !data.initialized;
         let seen_len = data.seen.len();
         let mut new = Vec::new();
