@@ -36,6 +36,9 @@ impl AppState {
 
 fn main() {
     tauri::Builder::default()
+        // Must be the first plugin: a second launch (a click on the shortcut while the window sits in the tray) only
+        // brings the running instance forward, instead of starting a second background check and a second local server.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| tray::show_main(app)))
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
@@ -53,6 +56,7 @@ fn main() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event
                 && window.label() == "main"
                 && window.app_handle().state::<news::News>().settings().close_to_tray
+                && window.app_handle().tray_by_id("main").is_some() // no tray icon: closing must really close, not hide the window for good
             {
                 api.prevent_close();
                 let _ = window.hide();
@@ -64,6 +68,7 @@ fn main() {
             commands::logout,
             commands::forget_session,
             commands::secret_store,
+            commands::tray_ready,
             commands::student,
             commands::class_info,
             commands::week,

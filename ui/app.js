@@ -824,6 +824,7 @@ function renderNotifySettings() {
   const s = S.notify;
   if (!s) return;
   $('nt-marks').checked = s.marks; $('nt-homework').checked = s.homework; $('nt-absences').checked = s.absences; $('nt-tray').checked = s.close_to_tray;
+  if (invoke) invoke('tray_ready').then((ok) => { $('nt-tray-warn').hidden = ok; }).catch(() => {});
   document.querySelectorAll('#nt-interval button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.v) === s.interval_min)));
   document.querySelectorAll('#nt-detail button').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.v === '1') === s.detail)));
 }

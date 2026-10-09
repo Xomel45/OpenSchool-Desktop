@@ -26,7 +26,10 @@ pub fn err(e: BridgeError) -> String {
 /// Try the saved session. `true` means the UI can load data right away.
 #[tauri::command]
 pub async fn restore_session(state: State<'_, AppState>, news: State<'_, crate::news::News>) -> Result<bool, String> {
-    let cookies = match store::load() {
+    // The system secret store talks D-Bus / the Credential Manager and may wait for the user (KWallet asks for its password):
+    // never on an async worker.
+    let loaded = tauri::async_runtime::spawn_blocking(store::load).await.map_err(|e| e.to_string())?;
+    let cookies = match loaded {
         Ok(Some(c)) => c,
         Ok(None) => return Ok(false),
         Err(e) => {
@@ -42,7 +45,7 @@ pub async fn restore_session(state: State<'_, AppState>, news: State<'_, crate::
             Ok(true)
         }
         Ok(false) => {
-            store::clear();
+            let _ = tauri::async_runtime::spawn_blocking(store::clear).await;
             state.reset_client(); // the rejected cookies must not stay in memory and mix with the next login
             Ok(false)
         }
@@ -60,6 +63,12 @@ pub async fn login(app: AppHandle, state: State<'_, AppState>, news: State<'_, c
         news.logged_in(); // a fresh session: the background check may run again, for whoever just logged in
     }
     Ok(ok)
+}
+
+/// Whether the tray icon exists. Without it "close to tray" would hide the window with no way back, so the UI says so.
+#[tauri::command]
+pub fn tray_ready(app: AppHandle) -> bool {
+    app.tray_by_id("main").is_some()
 }
 
 /// State of the system secret store, so the UI can say why a login is not remembered.
@@ -89,14 +98,17 @@ pub async fn secret_store() -> SecretStore {
 #[tauri::command]
 pub async fn forget_session(state: State<'_, AppState>, news: State<'_, crate::news::News>) -> Result<(), String> {
     news.deactivate(); // otherwise the background check would meet the same 401 and announce the expiry a second time
-    store::clear();
+    let _ = tauri::async_runtime::spawn_blocking(store::clear).await;
     state.reset_client();
     Ok(())
 }
 
 #[tauri::command]
-pub async fn logout(state: State<'_, AppState>, news: State<'_, crate::news::News>) -> Result<(), String> {
-    store::clear();
+pub async fn logout(app: AppHandle, state: State<'_, AppState>, news: State<'_, crate::news::News>) -> Result<(), String> {
+    let _ = tauri::async_runtime::spawn_blocking(store::clear).await;
+    // Logging out of the app must also log out of Gosuslugi in the login window, or the next "Войти" signs the same
+    // account straight back in and another student can never be chosen.
+    login::forget_profile(&app);
     news.reset();
     state.reset_client();
     Ok(())

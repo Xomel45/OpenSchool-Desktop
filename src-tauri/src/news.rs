@@ -144,8 +144,19 @@ fn plural<'a>(n: usize, one: &'a str, few: &'a str, many: &'a str) -> &'a str {
     }
 }
 
+/// Linux notification servers (Plasma, GNOME) read a little markup (`<b>`, `<a href>`) in the body, and the text of a homework
+/// is written by someone else: show it as text there. Windows shows the body as plain text, so it is left alone.
+fn plain(s: String) -> String {
+    if cfg!(target_os = "linux") { s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;") } else { s }
+}
+
 /// Title and body of the system notification for one or several new events.
 pub fn notification_text(items: &[Event], detail: bool) -> (String, String) {
+    let (title, body) = notification_text_raw(items, detail);
+    (plain(title), plain(body))
+}
+
+fn notification_text_raw(items: &[Event], detail: bool) -> (String, String) {
     const HIDDEN: &str = "Откройте OpenSchool";
     if let [e] = items {
         let (title, name) = match e.kind {
@@ -279,6 +290,9 @@ impl News {
 
     /// Take in what a check found. Returns the items that are new and wanted (empty on the very first run).
     fn absorb(&self, found: Vec<Event>, now: i64) -> Vec<Event> {
+        if !self.active.load(Ordering::SeqCst) {
+            return Vec::new(); // a check that was in flight while the user logged out must not bring the old account's file back
+        }
         let settings = self.settings();
         let mut data = match self.data.lock() {
             Ok(d) => d,
@@ -304,7 +318,7 @@ impl News {
             data.feed.insert(0, FeedItem { id: e.key.clone(), kind: e.kind.as_str().into(), title: e.subject.clone(), text: e.detail.clone(), value: e.value.clone(), date: e.date.clone(), ts: now, read: false });
         }
         data.feed.truncate(FEED_LIMIT);
-        if first || !seen_before_len_unchanged(&data, seen_len) {
+        if first || !nothing_added(&data, seen_len) {
             self.save_data(&data);
         }
         wanted
@@ -314,12 +328,21 @@ impl News {
 // ---------- checking ----------
 
 /// Nothing was added to the seen set: no need to rewrite the file on every check.
-fn seen_before_len_unchanged(data: &Data, seen_len: usize) -> bool {
+fn nothing_added(data: &Data, seen_len: usize) -> bool {
     data.seen.len() == seen_len
 }
 
 fn unix_now() -> i64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs() as i64)
+}
+
+/// Clears the "a check is running" flag when dropped.
+struct BusyGuard<'a>(&'a AtomicBool);
+
+impl Drop for BusyGuard<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
 }
 
 /// Why a check did not happen.
@@ -355,6 +378,7 @@ pub async fn check(app: &AppHandle) -> Result<usize, CheckError> {
     if news.busy.swap(true, Ordering::SeqCst) {
         return Ok(0); // a check is already running
     }
+    let _busy = BusyGuard(&news.busy); // released on every way out, also when this future is dropped half-way
     let result = async {
         let client = app.state::<AppState>().client();
         let known = news.student.lock().map_err(|e| e.to_string())?.clone();
@@ -377,7 +401,6 @@ pub async fn check(app: &AppHandle) -> Result<usize, CheckError> {
         Ok::<_, CheckError>(news.absorb(found, unix_now()))
     }
     .await;
-    news.busy.store(false, Ordering::SeqCst);
     let new = match result {
         Ok(n) => n,
         Err(CheckError::Expired) => {
@@ -518,6 +541,12 @@ mod tests {
     fn week(marks: Vec<Mark>, homeworks: Vec<Homework>, lessons: Vec<Lesson>) -> Week {
         Week { year: 2026, iso_week: 41, lessons, homeworks, marks }
     }
+    /// A `News` that is logged in (the background check only records anything for a confirmed login).
+    fn active(dir: PathBuf) -> News {
+        let news = News::new(dir);
+        news.logged_in();
+        news
+    }
     fn temp(name: &str) -> PathBuf {
         let d = std::env::temp_dir().join(format!("openschool-news-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
@@ -562,8 +591,34 @@ mod tests {
     }
 
     #[test]
+    fn homework_text_cannot_inject_markup_into_a_linux_notification() {
+        let e = events(&week(vec![], vec![homework("2", "Физика", "<a href=\"http://evil.example\">click</a> & <b>x</b>")], vec![]));
+        let (title, body) = notification_text(&e, true);
+        if cfg!(target_os = "linux") {
+            assert!(!body.contains('<') && !body.contains('>'), "{body}");
+            assert!(body.contains("&lt;a href") && body.contains("&amp;"));
+        }
+        assert!(title.starts_with("Новое задание"));
+    }
+
+    #[test]
+    fn a_check_in_flight_during_logout_cannot_bring_the_old_file_back() {
+        let dir = temp("logout-race");
+        let news = News::new(dir.clone());
+        news.logged_in();
+        news.absorb(vec![], 1);
+        news.absorb(events(&week(vec![mark("1", "Алгебра", "5")], vec![], vec![])), 2);
+        assert!(dir.join("news.json").exists());
+        news.reset(); // logout
+        assert!(!dir.join("news.json").exists());
+        let late = news.absorb(events(&week(vec![mark("2", "История", "4")], vec![], vec![])), 3); // the check that was still running
+        assert!(late.is_empty());
+        assert!(!dir.join("news.json").exists(), "the file of the logged-out account must stay deleted");
+    }
+
+    #[test]
     fn first_run_only_records_then_only_new_things_count() {
-        let news = News::new(temp("flow"));
+        let news = active(temp("flow"));
         let w1 = || events(&week(vec![mark("1", "Алгебра", "5")], vec![homework("2", "Физика", "x")], vec![lesson("3", true)]));
         assert!(news.absorb(w1(), 100).is_empty(), "first run must stay silent");
         assert_eq!(news.unread(), 0);
@@ -580,7 +635,7 @@ mod tests {
 
     #[test]
     fn another_account_starts_from_scratch_and_the_same_one_keeps_its_state() {
-        let news = News::new(temp("account"));
+        let news = active(temp("account"));
         news.adopt_account("A");
         news.absorb(vec![], 1);
         news.absorb(events(&week(vec![mark("1", "Алгебра", "5")], vec![], vec![])), 2);
@@ -620,7 +675,7 @@ mod tests {
     #[test]
     fn unchanged_checks_do_not_rewrite_the_file() {
         let dir = temp("nowrite");
-        let news = News::new(dir.clone());
+        let news = active(dir.clone());
         news.absorb(vec![], 1);
         let path = dir.join("news.json");
         assert!(path.exists());
@@ -633,7 +688,7 @@ mod tests {
 
     #[test]
     fn duplicates_inside_one_batch_count_once() {
-        let news = News::new(temp("dup"));
+        let news = active(temp("dup"));
         news.absorb(vec![], 1);
         let e = events(&week(vec![mark("1", "Алгебра", "5")], vec![], vec![]));
         assert_eq!(news.absorb([e.clone(), e].concat(), 2).len(), 1);
@@ -642,7 +697,7 @@ mod tests {
     #[test]
     fn feed_is_capped_persisted_and_cleared_on_reset() {
         let dir = temp("feed");
-        let news = News::new(dir.clone());
+        let news = active(dir.clone());
         news.absorb(vec![], 1);
         let many: Vec<Event> = (0..80).flat_map(|i| events(&week(vec![mark(&i.to_string(), "Алгебра", "5")], vec![], vec![]))).collect();
         news.absorb(many, 2);

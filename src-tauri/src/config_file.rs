@@ -51,6 +51,9 @@ pub fn read_archive(data: &[u8]) -> Result<(String, Option<Media>), String> {
             if buf.len() as u64 > MAX_CONFIG {
                 return Err("Файл настроек слишком большой".into());
             }
+            if config.is_some() {
+                return Err("В архиве больше одного config.json".into());
+            }
             config = Some(String::from_utf8(buf).map_err(|_| "config.json не в UTF-8".to_string())?);
         } else if let Some(ext) = name.strip_prefix(MEDIA_PREFIX).and_then(background::clean_ext) {
             let mut buf = Vec::new();
