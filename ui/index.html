@@ -8,7 +8,7 @@
 </head>
 <body>
 <div id="bglayer" aria-hidden="true"></div>
-<div id="boot" class="boot"><div class="card slim" id="boot-msg">Загрузка…</div></div>
+<div id="boot" class="boot"><div class="card slim" id="boot-msg"><span class="spin" aria-hidden="true"></span><span>Загрузка…</span></div></div>
 
 <div id="login" class="center" hidden>
   <div class="card">
@@ -101,6 +101,7 @@
       <nav class="box setnav" aria-label="Разделы настроек">
         <button data-sec="appearance" aria-current="true">Оформление</button>
         <button data-sec="notify">Уведомления</button>
+        <button data-sec="network">Сеть</button>
         <button data-sec="account">Аккаунт</button>
         <button data-sec="about">О приложении</button>
       </nav>
@@ -193,6 +194,16 @@
             <div id="bg-picker-host"></div>
             <div class="hint muted" id="bg-hint" aria-live="polite"></div>
           </div>
+          <div class="block"><h3>Масштаб интерфейса</h3>
+            <div class="seg" id="zoom" role="group" aria-label="Масштаб интерфейса">
+              <button data-z="0.85" aria-pressed="false">85%</button>
+              <button data-z="1" aria-pressed="true">100%</button>
+              <button data-z="1.15" aria-pressed="false">115%</button>
+              <button data-z="1.3" aria-pressed="false">130%</button>
+              <button data-z="1.5" aria-pressed="false">150%</button>
+            </div>
+            <div class="hint muted">Увеличивает или уменьшает всё приложение целиком.</div>
+          </div>
           <div class="block"><h3>Перенос настроек</h3>
             <div class="bg-own">
               <button class="btn ghost" id="cfg-export">Экспорт в файл…</button>
@@ -227,6 +238,19 @@
             <div class="hint muted">Тогда закрытое окно не останавливает проверку. Вернуть окно: значок в трее. В трее приложение завершается пунктом «Выход». Не на всех рабочих столах есть трей (в GNOME нужно расширение).</div>
           </div>
           <div class="block"><button class="btn ghost" id="nt-check">Проверить сейчас</button><div class="hint muted" id="nt-msg" aria-live="polite"></div></div>
+        </div>
+        <div data-pane="network" hidden>
+          <h1>Сеть</h1>
+          <div class="sub">Как приложение подключается к Госуслугам</div>
+          <div class="block"><h3>Прокси</h3>
+            <div class="seg" id="net-mode" role="group" aria-label="Прокси">
+              <button data-v="auto" aria-pressed="false">Автоматически</button><button data-v="direct" aria-pressed="false">Напрямую</button><button data-v="system" aria-pressed="false">Как в системе</button>
+            </div>
+            <div class="hint muted" id="net-hint"></div>
+          </div>
+          <div class="block"><button class="btn ghost" id="net-test">Проверить соединение</button><div class="hint muted" id="net-msg" aria-live="polite"></div>
+            <div class="hint muted">Госуслуги не пускают с зарубежных адресов, поэтому прокси за границей ломает вход и загрузку данных. Это касается только запросов к Госуслугам и окна входа. Если у вас VPN на весь трафик, приложение его обойти не может: нужно исключить Госуслуги в самом VPN.</div>
+          </div>
         </div>
         <div data-pane="account" hidden>
           <h1>Аккаунт</h1>
@@ -263,6 +287,19 @@
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 <div id="tip" role="tooltip"></div>
-<script src="app.js"></script>
+<script src="js/core.js"></script>
+<script src="js/home.js"></script>
+<script src="js/start.js"></script>
+<script src="js/schedule.js"></script>
+<script src="js/tasks.js"></script>
+<script src="js/marks.js"></script>
+<script src="js/news.js"></script>
+<script src="js/network.js"></script>
+<script src="js/events.js"></script>
+<script src="js/appearance.js"></script>
+<script src="js/picker.js"></script>
+<script src="js/background.js"></script>
+<script src="js/config.js"></script>
+<script src="js/main.js"></script>
 </body>
 </html>

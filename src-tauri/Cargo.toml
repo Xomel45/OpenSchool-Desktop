@@ -26,6 +26,8 @@ tauri-plugin-single-instance = "2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 keyring = { version = "3", features = ["sync-secret-service", "crypto-rust"] }
+# the login window asks WebKit to skip the proxy (the same crate and features tauri already uses)
+webkit2gtk = { version = "2", features = ["v2_40"] }
 dbus = "0.9"
 
 [target.'cfg(windows)'.dependencies]

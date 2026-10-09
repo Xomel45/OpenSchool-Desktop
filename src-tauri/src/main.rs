@@ -6,10 +6,12 @@ mod commands;
 mod config_file;
 mod eyedropper;
 mod login;
+mod net;
 mod news;
 mod store;
 mod tray;
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use openschool_bridge::Client;
@@ -18,11 +20,26 @@ use tauri::Manager;
 /// The bridge client holds the session cookies; it is replaced on logout.
 pub struct AppState {
     client: Mutex<Arc<Client>>,
+    /// Gosuslugi is reached without any proxy (see `net`). Read when a client is made.
+    direct: AtomicBool,
 }
 
 impl AppState {
     fn new() -> Self {
-        Self { client: Mutex::new(Arc::new(Client::new().expect("http client"))) }
+        Self { client: Mutex::new(Arc::new(Client::new().expect("http client"))), direct: AtomicBool::new(false) }
+    }
+
+    fn make_client(&self) -> Arc<Client> {
+        Arc::new(if self.is_direct() { Client::direct() } else { Client::new() }.expect("http client"))
+    }
+
+    pub fn is_direct(&self) -> bool {
+        self.direct.load(Ordering::SeqCst)
+    }
+
+    /// Returns whether the way changed (the caller then replaces the client).
+    pub fn set_direct(&self, direct: bool) -> bool {
+        self.direct.swap(direct, Ordering::SeqCst) != direct
     }
 
     pub fn client(&self) -> Arc<Client> {
@@ -30,7 +47,7 @@ impl AppState {
     }
 
     pub fn reset_client(&self) {
-        *self.client.lock().expect("client lock") = Arc::new(Client::new().expect("http client"));
+        *self.client.lock().expect("client lock") = self.make_client();
     }
 }
 
@@ -44,6 +61,7 @@ fn main() {
         .plugin(tauri_plugin_notification::init())
         .manage(AppState::new())
         .setup(|app| {
+            net::init(app.handle())?;
             news::init(app.handle())?;
             // A missing tray (some desktops have none) must not stop the app.
             if let Err(e) = tray::build(app.handle()) {
@@ -79,6 +97,9 @@ fn main() {
             background::clear_background,
             config_file::export_config,
             config_file::import_config,
+            net::net_get,
+            net::net_set,
+            net::net_test,
             news::notify_get,
             news::notify_set,
             news::news_feed,

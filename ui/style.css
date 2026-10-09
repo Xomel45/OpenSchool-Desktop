@@ -343,3 +343,16 @@ h2{font-size:13px;margin:0;padding:12px 16px 8px;color:var(--muted);font-weight:
 .card.slim:has(.neterr){padding:0;background:none;border:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
 .hint.warn{color:var(--g3)}
 .hint.warn[hidden]{display:none}
+
+/* loading: spinner on the boot card, the app fades in once its first data is ready */
+.card.slim:has(.spin){display:inline-flex;align-items:center;gap:12px}
+.spin{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--accent);flex:none}
+@media (prefers-reduced-motion:no-preference){
+  .spin{animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #app.fadein>*{animation:appin .5s cubic-bezier(.2,.7,.2,1) both}
+  #app.fadein>:nth-child(2){animation-delay:.06s}
+  #app.fadein>:nth-child(3){animation-delay:.12s}
+  @keyframes appin{from{opacity:0;transform:translateY(10px)}}
+  #marks.arrive{animation:appin .4s ease both}
+}

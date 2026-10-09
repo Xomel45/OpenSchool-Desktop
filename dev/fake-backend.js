@@ -38,6 +38,7 @@
   let notify = { marks: true, homework: true, absences: false, interval_min: 15, detail: true, close_to_tray: false };
   window.__fakeEmit = (name, payload) => (listeners[name] || []).forEach((cb) => cb({ payload }));
   if (/toast=1/.test(location.hash)) setTimeout(() => window.__fakeEmit('news-new', { title: 'Новая оценка: Физика — 4', body: 'Обычная отметка · 8 октября', kinds: ['mark'], value: '4' }), 3000);
+  let netSt = { mode: 'auto', direct: false, reachable: null, country: null };
   let fakeBg = null; // the "stored" background: a blob URL, shown through the fake convertFileSrc
   window.__TAURI__ = { event: { listen: async (name, cb) => { (listeners[name] = listeners[name] || []).push(cb); return () => {}; } }, core: { convertFileSrc: (p) => p, invoke: async (cmd, a, opts) => {
     if (cmd === 'set_background') { const ext = opts && opts.headers && opts.headers.ext; if (!/^(png|jpe?g|webp|gif|avif|mp4|webm)$/.test(ext)) throw 'Этот формат не поддерживается'; fakeBg = URL.createObjectURL(new Blob([a])); return fakeBg; }
@@ -45,6 +46,9 @@
     if (cmd === 'clear_background') { fakeBg = null; return null; }
     if (cmd === 'news_feed') return { items: feed, unread: feed.filter((i) => !i.read).length };
     if (cmd === 'news_read') { feed.forEach((i) => { if (!a.ids.length || a.ids.includes(i.id)) i.read = true; }); const u = feed.filter((i) => !i.read).length; window.__fakeEmit('news-updated', { unread: u }); return u; }
+    if (cmd === 'net_get') return netSt;
+    if (cmd === 'net_set') { netSt = { mode: a.mode, direct: a.mode === 'direct' || (a.mode === 'auto' && /proxy=bad/.test(location.hash)), reachable: null, country: a.mode === 'auto' ? (/proxy=bad/.test(location.hash) ? 'DE' : 'RU') : null }; return netSt; }
+    if (cmd === 'net_test') return /net=off/.test(location.hash) ? { ...netSt, reachable: false } : netSt;
     if (cmd === 'notify_get') return notify;
     if (cmd === 'notify_set') { window.__notifySaved = a.settings; notify = a.settings; return notify; }
     if (cmd === 'news_check_now') return /checkfail=1/.test(location.hash) ? Promise.reject('нет сети') : 2;

@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Permissions of the main window only. The ESIA login window loads a remote page and gets no IPC access.",
   "windows": ["main"],
-  "permissions": ["core:default", "clipboard-manager:allow-write-text"]
+  "permissions": ["core:default", "clipboard-manager:allow-write-text", "core:webview:allow-set-webview-zoom"]
 }

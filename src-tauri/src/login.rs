@@ -38,7 +38,7 @@ pub fn forget_profile(app: &AppHandle) {
     }
 }
 
-pub async fn run(app: &AppHandle, client: Arc<Client>) -> Result<bool, String> {
+pub async fn run(app: &AppHandle, client: Arc<Client>, direct: bool) -> Result<bool, String> {
     if let Some(existing) = app.get_webview_window(LABEL) {
         let _ = existing.set_focus();
         return Ok(false);
@@ -46,14 +46,36 @@ pub async fn run(app: &AppHandle, client: Arc<Client>) -> Result<bool, String> {
     let start_url: Url = login_url().parse().map_err(|e| format!("bad login url: {e}"))?;
     // A remote page never gets our commands (Tauri rejects invoke from a non-local origin without an explicit `remote` capability,
     // and ours is for the "main" window only), so the login window is only a browser.
-    let mut builder = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::External(start_url.clone()))
+    // Without a proxy on Linux the window must be told before it loads anything, so it starts empty and is sent to the page afterwards.
+    let first: Url = if cfg!(target_os = "linux") && direct { "about:blank".parse().map_err(|e| format!("{e}"))? } else { start_url.clone() };
+    let mut builder = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::External(first))
         .title("OpenSchool: вход через Госуслуги")
         .inner_size(480.0, 760.0);
     if let Some(dir) = profile_dir(app) {
         let _ = std::fs::create_dir_all(&dir);
         builder = builder.data_directory(dir);
     }
-    builder.build().map_err(|e| e.to_string())?;
+    #[cfg(windows)]
+    if direct {
+        builder = builder.additional_browser_args("--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --no-proxy-server");
+    }
+    let window = builder.build().map_err(|e| e.to_string())?;
+    #[cfg(target_os = "linux")]
+    if direct {
+        let target = start_url.to_string();
+        window
+            .with_webview(move |wv| {
+                use webkit2gtk::{WebViewExt, WebsiteDataManagerExt};
+                let view = wv.inner();
+                if let Some(data) = view.website_data_manager() {
+                    data.set_network_proxy_settings(webkit2gtk::NetworkProxyMode::NoProxy, None);
+                }
+                view.load_uri(&target);
+            })
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(target_os = "linux"))]
+    let _ = &window;
 
     let started = Instant::now();
     let mut last_check: Option<Instant> = None;

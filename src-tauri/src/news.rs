@@ -221,12 +221,12 @@ pub struct News {
     active: AtomicBool,
 }
 
-fn read_json<T: for<'de> Deserialize<'de> + Default>(path: &Path) -> T {
+pub(crate) fn read_json<T: for<'de> Deserialize<'de> + Default>(path: &Path) -> T {
     std::fs::read_to_string(path).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
 }
 
 /// Write through a temporary file so a crash never leaves half a file.
-fn write_json<T: Serialize>(path: &Path, value: &T) {
+pub(crate) fn write_json<T: Serialize>(path: &Path, value: &T) {
     let tmp = path.with_extension("tmp");
     let ok = serde_json::to_vec(value).ok().is_some_and(|b| std::fs::create_dir_all(path.parent().unwrap_or(Path::new("."))).is_ok() && std::fs::write(&tmp, b).is_ok() && std::fs::rename(&tmp, path).is_ok());
     if !ok {

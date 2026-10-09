@@ -25,7 +25,7 @@ pub fn err(e: BridgeError) -> String {
 
 /// Try the saved session. `true` means the UI can load data right away.
 #[tauri::command]
-pub async fn restore_session(state: State<'_, AppState>, news: State<'_, crate::news::News>) -> Result<bool, String> {
+pub async fn restore_session(state: State<'_, AppState>, news: State<'_, crate::news::News>, net: State<'_, crate::net::Net>) -> Result<bool, String> {
     // The system secret store talks D-Bus / the Credential Manager and may wait for the user (KWallet asks for its password):
     // never on an async worker.
     let loaded = tauri::async_runtime::spawn_blocking(store::load).await.map_err(|e| e.to_string())?;
@@ -37,6 +37,7 @@ pub async fn restore_session(state: State<'_, AppState>, news: State<'_, crate::
             return Ok(false);
         }
     };
+    crate::net::resolve(&net, &state).await; // proxy or direct: decided before the saved session goes into the client
     let client = state.client();
     client.set_session(cookies);
     match client.check_session().await {
@@ -56,9 +57,10 @@ pub async fn restore_session(state: State<'_, AppState>, news: State<'_, crate::
 
 /// Open the ESIA login window. `false` means the user closed it.
 #[tauri::command]
-pub async fn login(app: AppHandle, state: State<'_, AppState>, news: State<'_, crate::news::News>) -> Result<bool, String> {
+pub async fn login(app: AppHandle, state: State<'_, AppState>, news: State<'_, crate::news::News>, net: State<'_, crate::net::Net>) -> Result<bool, String> {
+    crate::net::resolve(&net, &state).await;
     state.reset_client(); // every login starts from a clean client, nothing of an older session survives in its cookie jar
-    let ok = login::run(&app, state.client()).await?;
+    let ok = login::run(&app, state.client(), state.is_direct()).await?;
     if ok {
         news.logged_in(); // a fresh session: the background check may run again, for whoever just logged in
     }
