@@ -1,7 +1,10 @@
 'use strict';
 // OpenSchool UI. All data comes from Rust through Tauri commands (see src-tauri/src/commands.rs).
 
-const invoke = window.__TAURI__ && window.__TAURI__.core ? window.__TAURI__.core.invoke : null;
+const rawInvoke = window.__TAURI__ && window.__TAURI__.core ? window.__TAURI__.core.invoke : null;
+/** Every command goes through here: the Rust side answers "SESSION_EXPIRED" when the server rejects the session (HTTP 401/403),
+ *  and wherever that happens the user is sent to the login screen instead of staring at a retry button. */
+const invoke = rawInvoke ? (cmd, args, opts) => rawInvoke(cmd, args, opts).catch((e) => { if (e === 'SESSION_EXPIRED') sessionExpired(); throw e; }) : null;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -63,6 +66,30 @@ function loadWeek(d) {
   }
   return S.weekReqs.get(k);
 }
+
+// ---------- load errors: one friendly card instead of a technical message ----------
+const NET_ICON = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 18.5h9a4 4 0 0 0 .7-7.94A5.5 5.5 0 0 0 6.6 9.3 4.6 4.6 0 0 0 7.5 18.5Z"/><path d="M4 4l16 16"/></svg>';
+/** What a failed request means for the user. `OFFLINE` and `HTTP <code>` come from the Rust side (commands::err). */
+function describeError(e) {
+  const s = String((e && e.message) || e);
+  if (s === 'OFFLINE') return { title: 'Не удалось связаться с Госуслугами', text: 'Проверьте подключение к интернету. Если интернет есть, возможно, сайт Госуслуг сейчас недоступен.' };
+  const m = s.match(/HTTP (\d{3})/);
+  if (m) return { title: 'Госуслуги ответили ошибкой', text: `Сервер вернул ошибку ${m[1]}. Обычно это временно: попробуйте чуть позже.` };
+  return { title: 'Не удалось загрузить данные', text: 'Что-то пошло не так. Если повторится, сообщите об этом с текстом ниже.', detail: s };
+}
+/** Fill `el` with the error card and retry by itself: every 20 s and as soon as the system reports that the network is back. */
+function renderLoadError(el, e, retry, compact) {
+  const d = describeError(e);
+  el.innerHTML = `<div class="neterr${compact ? ' compact' : ''}" role="alert"><div class="ne-ic">${NET_ICON}</div><b>${esc(d.title)}</b><p>${esc(d.text)}</p>${d.detail ? `<code>${esc(d.detail)}</code>` : ''}<button class="btn" data-retry>Повторить</button><small>Попробуем снова сами, как только появится связь.</small></div>`;
+  const block = el.querySelector('.neterr');
+  const visible = () => document.contains(block) && block.getClientRects().length > 0;
+  const again = () => { if (document.contains(block)) retry(); };
+  block.querySelector('[data-retry]').onclick = again;
+  S.errBlock = { block, visible, again };
+  clearTimeout(S.errTimer);
+  S.errTimer = setTimeout(() => { if (visible()) again(); }, 20000);
+}
+window.addEventListener('online', () => { if (S.errBlock && S.errBlock.visible()) S.errBlock.again(); });
 
 // ---------- helpers ----------
 const reduceMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
@@ -226,8 +253,7 @@ async function setDay(d) {
   } catch (e) {
     if (token !== S.token) return;
     S.dayError = true;
-    $('sched').innerHTML = `<div class="empty">Не удалось загрузить: ${esc(e)}<br><br><button class="btn ghost" id="retry">Повторить</button></div>`;
-    $('retry').onclick = () => setDay(S.cur);
+    renderLoadError($('sched'), e, () => setDay(S.cur), true);
     return;
   }
   if (token !== S.token) return; // the user moved on while loading
@@ -282,19 +308,34 @@ async function start() {
   }
 }
 
+/** The session is dead: forget it, drop everything shown, ask for a new login. Safe to call many times in a row. */
+async function sessionExpired() {
+  if (S.expiredHandled) return;
+  S.expiredHandled = true;
+  try { await rawInvoke('forget_session'); } catch (_) { /* the login screen is what matters */ }
+  S.weekReqs.clear(); S.lessonsById.clear(); S.byDate.clear(); S.marks.clear(); S.hw.clear();
+  const dlg = $('lessondlg');
+  if (dlg.open) dlg.close();
+  closeCalendar(false); closeFeed(false);
+  $('toast').hidden = true;
+  showLogin('Сессия истекла. Войдите через Госуслуги снова.');
+}
+
 function showLogin(msg) {
   show('login');
   $('loginerr').textContent = msg || '';
   $('loginbtn').disabled = false;
+  $('loginnote').textContent = '';
+  // If the system secret store is not there (KWallet not running, no keyring), say so: the login will not be remembered.
+  if (invoke) invoke('secret_store').then((s) => { if (!s.available) $('loginnote').textContent = 'Хранилище секретов недоступно (KWallet, GNOME Keyring или Диспетчер учётных данных): после входа сессия не запомнится, и при каждом запуске придётся входить заново.'; }).catch(() => {});
 }
 
 async function boot() {
-  if (!invoke) { $('boot').textContent = 'Запустите приложение через Tauri: это окно открыто вне его.'; return; }
+  if (!invoke) { $('boot-msg').textContent = 'Запустите приложение через Tauri: это окно открыто вне его.'; return; }
   try {
     if (await invoke('restore_session')) await start(); else showLogin();
   } catch (e) {
-    $('boot').innerHTML = `Не удалось проверить сессию: ${esc(e)}<br><br><button class="btn ghost" id="bootretry">Повторить</button>`;
-    $('bootretry').onclick = () => { $('boot').textContent = 'Загрузка…'; boot(); };
+    renderLoadError($('boot-msg'), e, () => { $('boot-msg').textContent = 'Загрузка…'; boot(); });
   }
 }
 
@@ -372,8 +413,7 @@ async function showWeek(monday) {
     await Promise.all([loadWeek(monday), loadWeek(addDays(monday, -7))]);
   } catch (e) {
     if (token !== S.wtoken) return;
-    $('wgrid').innerHTML = `<div class="empty" style="grid-column:1/-1">Не удалось загрузить: ${esc(e)}<br><br><button class="btn ghost" id="wretry">Повторить</button></div>`;
-    $('wretry').onclick = () => showWeek(S.week);
+    renderLoadError($('wgrid'), e, () => showWeek(S.week));
     return;
   }
   if (token !== S.wtoken) return;
@@ -542,8 +582,7 @@ async function showTasks(p, page) {
     for (let i = 0; i < weeks.length; i += 4) await Promise.all(weeks.slice(i, i + 4).map((m) => loadWeek(m)));
   } catch (e) {
     if (token !== S.ttoken) return;
-    $('tk-body').innerHTML = `<div class="gr-note">Не удалось загрузить: ${esc(e)}<br><br><button class="btn ghost" id="tk-retry">Повторить</button></div>`;
-    $('tk-retry').onclick = () => showTasks();
+    renderLoadError($('tk-body'), e, () => showTasks());
     return;
   }
   if (token !== S.ttoken) return; // the user switched the tab while this one was loading
@@ -670,8 +709,7 @@ async function showMarks(p) {
     await loadRange(range.start, range.end, (done, total) => { if (token === S.gtoken && $('gr-load')) $('gr-load').textContent = `Загрузка оценок… ${done} из ${total} нед.`; });
   } catch (e) {
     if (token !== S.gtoken) return;
-    body.innerHTML = `<div class="gr-note">Не удалось загрузить: ${esc(e)}<br><br><button class="btn ghost" id="gr-retry">Повторить</button></div>`;
-    $('gr-retry').onclick = () => showMarks(p);
+    renderLoadError(body, e, () => showMarks(p));
     return;
   }
   if (token !== S.gtoken) return; // the user switched the period while this one was loading
@@ -759,13 +797,13 @@ document.addEventListener('click', (e) => { if (!$('feed').hidden && !e.target.c
 window.addEventListener('resize', () => { if (!$('feed').hidden) positionFeed(); });
 
 let toastTimer = 0;
-function showToast(p) {
+function showToast(p, ms) {
   const mark = p.kinds && p.kinds.length === 1 && p.kinds[0] === 'mark' && p.value;
   const t = $('toast');
   t.innerHTML = `${mark ? `<span class="chip ${cls(p.value)}">${esc(p.value)}</span>` : '<span class="chip cn small">!</span>'}<div class="t"><b>${esc(p.title)}</b><span class="m">${esc(p.body)}</span></div>`;
   t.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.hidden = true; }, 6000);
+  toastTimer = setTimeout(() => { t.hidden = true; }, ms || 6000);
 }
 $('toast').onclick = (e) => { e.stopPropagation(); $('toast').hidden = true; openFeed(); }; // stopPropagation: the "click outside the feed" handler would close it at once
 
@@ -779,6 +817,7 @@ async function initNews() {
   S.newsReady = true;
   tauriEvent.listen('news-updated', (e) => { renderBell(e.payload.unread); if (!$('feed').hidden) loadFeed(); });
   tauriEvent.listen('news-new', (e) => showToast(e.payload));
+  tauriEvent.listen('session-expired', () => sessionExpired()); // the background check found the session dead
 }
 
 function renderNotifySettings() {
@@ -804,7 +843,7 @@ $('nt-check').onclick = async () => {
   try {
     const n = await invoke('news_check_now');
     $('nt-msg').textContent = n ? `Найдено нового: ${n}.` : 'Ничего нового.';
-  } catch (e) { $('nt-msg').textContent = `Не удалось проверить: ${e}`; }
+  } catch (e) { $('nt-msg').textContent = e === 'OFFLINE' ? 'Нет связи с Госуслугами.' : `Не удалось проверить: ${e}`; }
   $('nt-check').disabled = false;
 };
 
@@ -813,7 +852,11 @@ $('loginbtn').onclick = async () => {
   $('loginbtn').disabled = true;
   $('loginerr').textContent = '';
   try {
-    if (await invoke('login')) { show('boot'); await start(); } else showLogin('Окно входа закрыто');
+    if (await invoke('login')) {
+      S.expiredHandled = false; show('boot'); await start();
+      // The login worked, but was it saved? If not, the next start asks for it again, and the user should know why.
+      invoke('secret_store').then((s) => { if (!s.has_session) showToast({ title: 'Вход не сохранён', body: 'Хранилище секретов недоступно: при следующем запуске придётся войти снова.', kinds: [] }, 12000); }).catch(() => {});
+    } else showLogin('Окно входа закрыто');
   } catch (e) { showLogin(String(e)); }
 };
 async function logout() { await invoke('logout'); closeFeed(false); S.feed = []; renderBell(0); S.weekReqs.clear(); S.lessonsById.clear(); S.byDate.clear(); S.marks.clear(); S.hw.clear(); view('home'); showLogin(); }

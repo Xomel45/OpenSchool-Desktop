@@ -18,6 +18,7 @@ zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
 tauri-plugin-dialog = "2"
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
 tauri-plugin-notification = "2"
+getrandom = "0.3"
 
 # Secret store backend per OS: Secret Service (KWallet / GNOME Keyring) and Windows Credential Manager.
 [target.'cfg(target_os = "linux")'.dependencies]

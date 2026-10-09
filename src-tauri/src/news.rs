@@ -13,12 +13,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use openschool_bridge::Week;
+use openschool_bridge::{BridgeError, Week};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_notification::NotificationExt;
 
-use crate::AppState;
+use crate::{commands::SESSION_EXPIRED, AppState};
 
 const FEED_LIMIT: usize = 50;
 const INTERVALS: [u32; 4] = [5, 15, 30, 60];
@@ -121,8 +121,11 @@ pub fn events(week: &Week) -> Vec<Event> {
     for l in &week.lessons {
         if l.absence.is_some() {
             let date = l.start.get(..10).unwrap_or("").to_string();
-            let time = l.start.get(11..16).unwrap_or("");
-            out.push(Event { key: format!("a:{}", l.id), kind: Kind::Absence, subject: l.subject_name.clone(), value: None, detail: format!("{}, {time}", fmt_date(&date)), date });
+            let detail = match l.start.get(11..16) {
+                Some(time) if !time.is_empty() => format!("{}, {time}", fmt_date(&date)),
+                _ => fmt_date(&date),
+            };
+            out.push(Event { key: format!("a:{}", l.id), kind: Kind::Absence, subject: l.subject_name.clone(), value: None, detail, date });
         }
     }
     out
@@ -189,6 +192,8 @@ pub struct FeedItem {
 #[derive(Default, Serialize, Deserialize)]
 #[serde(default)]
 struct Data {
+    /// The student the seen ids and the feed belong to; another account starts from scratch (silently).
+    account: Option<String>,
     initialized: bool,
     seen: HashSet<String>,
     feed: Vec<FeedItem>,
@@ -200,6 +205,9 @@ pub struct News {
     data: Mutex<Data>,
     student: Mutex<Option<String>>,
     busy: AtomicBool,
+    /// A login is confirmed (restored, or done just now). Only then does the background check ask the server anything:
+    /// without a session it would get a 401 and wrongly announce "session expired" (at first start, after logout).
+    active: AtomicBool,
 }
 
 fn read_json<T: for<'de> Deserialize<'de> + Default>(path: &Path) -> T {
@@ -219,7 +227,7 @@ impl News {
     pub fn new(dir: PathBuf) -> Self {
         let settings: Settings = read_json(&dir.join("notify.json"));
         let data: Data = read_json(&dir.join("news.json"));
-        Self { dir, settings: Mutex::new(settings.sanitized()), data: Mutex::new(data), student: Mutex::new(None), busy: AtomicBool::new(false) }
+        Self { dir, settings: Mutex::new(settings.sanitized()), data: Mutex::new(data), student: Mutex::new(None), busy: AtomicBool::new(false), active: AtomicBool::new(false) }
     }
 
     pub fn settings(&self) -> Settings {
@@ -230,8 +238,32 @@ impl News {
         write_json(&self.dir.join("news.json"), d);
     }
 
+    /// A confirmed login (a restored session or a new one): checks may run, and the student is looked up again (it may be another account).
+    pub fn logged_in(&self) {
+        self.active.store(true, Ordering::SeqCst);
+        if let Ok(mut s) = self.student.lock() {
+            *s = None;
+        }
+    }
+
+    /// Make sure the stored ids and feed belong to `student`; for another account they are dropped (and the next check stays silent).
+    fn adopt_account(&self, student: &str) {
+        if let Ok(mut d) = self.data.lock()
+            && d.account.as_deref() != Some(student)
+        {
+            *d = Data { account: Some(student.to_string()), ..Data::default() };
+            self.save_data(&d);
+        }
+    }
+
+    /// The session is gone (the UI saw it expire): no more checks until the next login.
+    pub fn deactivate(&self) {
+        self.active.store(false, Ordering::SeqCst);
+    }
+
     /// Logout: forget the student, the seen ids and the feed (they belong to the account).
     pub fn reset(&self) {
+        self.deactivate();
         if let Ok(mut s) = self.student.lock() {
             *s = None;
         }
@@ -253,6 +285,7 @@ impl News {
             Err(_) => return Vec::new(),
         };
         let first = !data.initialized;
+        let seen_len = data.seen.len();
         let mut new = Vec::new();
         let mut batch = HashSet::new();
         for e in found {
@@ -271,21 +304,54 @@ impl News {
             data.feed.insert(0, FeedItem { id: e.key.clone(), kind: e.kind.as_str().into(), title: e.subject.clone(), text: e.detail.clone(), value: e.value.clone(), date: e.date.clone(), ts: now, read: false });
         }
         data.feed.truncate(FEED_LIMIT);
-        self.save_data(&data);
+        if first || !seen_before_len_unchanged(&data, seen_len) {
+            self.save_data(&data);
+        }
         wanted
     }
 }
 
 // ---------- checking ----------
 
+/// Nothing was added to the seen set: no need to rewrite the file on every check.
+fn seen_before_len_unchanged(data: &Data, seen_len: usize) -> bool {
+    data.seen.len() == seen_len
+}
+
 fn unix_now() -> i64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs() as i64)
 }
 
+/// Why a check did not happen.
+#[derive(Debug)]
+pub enum CheckError {
+    /// The server does not accept the session any more.
+    Expired,
+    Other(String),
+}
+
+impl From<BridgeError> for CheckError {
+    fn from(e: BridgeError) -> Self {
+        match e {
+            BridgeError::Auth(_) => CheckError::Expired,
+            other => CheckError::Other(crate::commands::err(other)),
+        }
+    }
+}
+
+impl From<String> for CheckError {
+    fn from(e: String) -> Self {
+        CheckError::Other(e)
+    }
+}
+
 /// One pass: fetch three weeks, find what is new, tell the user. Returns how many wanted items were new.
-pub async fn check(app: &AppHandle) -> Result<usize, String> {
+pub async fn check(app: &AppHandle) -> Result<usize, CheckError> {
     use chrono::{Datelike, Duration as Days, Local};
     let news = app.state::<News>();
+    if !news.active.load(Ordering::SeqCst) {
+        return Err(CheckError::Expired); // not logged in (yet / any more): nothing to ask, and nothing to announce
+    }
     if news.busy.swap(true, Ordering::SeqCst) {
         return Ok(0); // a check is already running
     }
@@ -295,28 +361,50 @@ pub async fn check(app: &AppHandle) -> Result<usize, String> {
         let student = match known {
             Some(s) => s,
             None => {
-                let s = client.students().await.map_err(|e| e.to_string())?.into_iter().next().ok_or("no student")?.id;
+                let s = client.students().await?.into_iter().next().ok_or("no student".to_string())?.id;
                 *news.student.lock().map_err(|e| e.to_string())? = Some(s.clone());
                 s
             }
         };
+        news.adopt_account(&student);
         let today = Local::now().date_naive();
         let mut found = Vec::new();
         for shift in [-7i64, 0, 7] {
             let w = (today + Days::days(shift)).iso_week();
-            let week = client.week(student.clone(), w.year() as u32, w.week()).await.map_err(|e| e.to_string())?;
+            let week = client.week(student.clone(), w.year() as u32, w.week()).await?;
             found.extend(events(&week));
         }
-        Ok::<_, String>(news.absorb(found, unix_now()))
+        Ok::<_, CheckError>(news.absorb(found, unix_now()))
     }
     .await;
     news.busy.store(false, Ordering::SeqCst);
-    let new = result?;
+    let new = match result {
+        Ok(n) => n,
+        Err(CheckError::Expired) => {
+            session_expired(app);
+            return Err(CheckError::Expired);
+        }
+        Err(e) => return Err(e),
+    };
     if !new.is_empty() {
         announce(app, &new);
     }
     let _ = app.emit("news-updated", serde_json::json!({ "unread": news.unread() }));
     Ok(new.len())
+}
+
+/// The server rejected the session: tell the UI (it shows the login screen) and, if nobody is looking at the window,
+/// the user (a system notification), once. Checks then pause until the next login.
+fn session_expired(app: &AppHandle) {
+    let news = app.state::<News>();
+    if !news.active.swap(false, Ordering::SeqCst) {
+        return; // already handled (or never logged in)
+    }
+    let looking = app.get_webview_window("main").is_some_and(|w| w.is_visible().unwrap_or(false) && w.is_focused().unwrap_or(false));
+    let _ = app.emit("session-expired", ());
+    if !looking && let Err(e) = app.notification().builder().title("Сессия истекла").body("Войдите в OpenSchool снова, иначе уведомления не придут").show() {
+        eprintln!("news: notification failed: {e}");
+    }
 }
 
 /// A quiet toast inside the window if the user is looking at it, a system notification otherwise.
@@ -343,8 +431,9 @@ pub fn start(app: AppHandle) {
             let every = Duration::from_secs(u64::from(app.state::<News>().settings().interval_min) * 60);
             if last.is_none_or(|l| l.elapsed() >= every) {
                 last = Some(Instant::now());
-                if let Err(e) = check(&app).await {
-                    eprintln!("news: check failed: {e}"); // offline or not logged in: try again next time
+                match check(&app).await {
+                    Ok(_) | Err(CheckError::Expired) => {}
+                    Err(CheckError::Other(e)) => eprintln!("news: check failed: {e}"), // offline etc.: try again next time
                 }
             }
             tokio::time::sleep(Duration::from_secs(10)).await;
@@ -399,7 +488,10 @@ pub fn news_read(app: AppHandle, news: State<'_, News>, ids: Vec<String>) -> usi
 /// "Check now" button: returns how many new wanted items were found.
 #[tauri::command]
 pub async fn news_check_now(app: AppHandle) -> Result<usize, String> {
-    check(&app).await
+    check(&app).await.map_err(|e| match e {
+        CheckError::Expired => SESSION_EXPIRED.to_string(),
+        CheckError::Other(s) => s,
+    })
 }
 
 pub fn init(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
@@ -484,6 +576,59 @@ mod tests {
         assert_eq!(news.unread(), 2);
         news.settings.lock().unwrap().absences = true;
         assert!(news.absorb(events(&week(vec![], vec![], vec![lesson("7", true)])), 400).is_empty(), "an old absence must not flood after switching it on");
+    }
+
+    #[test]
+    fn another_account_starts_from_scratch_and_the_same_one_keeps_its_state() {
+        let news = News::new(temp("account"));
+        news.adopt_account("A");
+        news.absorb(vec![], 1);
+        news.absorb(events(&week(vec![mark("1", "Алгебра", "5")], vec![], vec![])), 2);
+        assert_eq!(news.unread(), 1);
+        news.adopt_account("A");
+        assert_eq!(news.unread(), 1, "same account: nothing is lost");
+        news.adopt_account("B");
+        assert_eq!(news.unread(), 0, "another account: the old feed is gone");
+        assert!(!news.data.lock().unwrap().initialized, "and the first check of the new account stays silent");
+    }
+
+    #[test]
+    fn auth_errors_are_told_apart_and_a_new_login_resumes_checks() {
+        assert!(matches!(CheckError::from(BridgeError::Auth("HTTP 401".into())), CheckError::Expired));
+        assert!(matches!(CheckError::from(BridgeError::Network("HTTP 500".into())), CheckError::Other(_)));
+        let news = News::new(temp("expired"));
+        assert!(!news.active.load(Ordering::SeqCst), "a fresh start has no login: the background check must stay quiet");
+        *news.student.lock().unwrap() = Some("old".into());
+        news.logged_in();
+        assert!(news.active.load(Ordering::SeqCst));
+        assert!(news.student.lock().unwrap().is_none());
+        news.deactivate();
+        assert!(!news.active.load(Ordering::SeqCst));
+        news.logged_in();
+        news.reset(); // logout
+        assert!(!news.active.load(Ordering::SeqCst), "after logout the check must not run and announce an expired session");
+    }
+
+    #[test]
+    fn an_absence_without_a_time_has_no_dangling_comma() {
+        let mut l = lesson("9", true);
+        l.start = "2026-10-08".into();
+        let e = events(&week(vec![], vec![], vec![l]));
+        assert_eq!(e[0].detail, "8 октября");
+    }
+
+    #[test]
+    fn unchanged_checks_do_not_rewrite_the_file() {
+        let dir = temp("nowrite");
+        let news = News::new(dir.clone());
+        news.absorb(vec![], 1);
+        let path = dir.join("news.json");
+        assert!(path.exists());
+        std::fs::remove_file(&path).unwrap();
+        news.absorb(vec![], 2); // nothing new
+        assert!(!path.exists(), "no new ids: no write");
+        news.absorb(events(&week(vec![mark("1", "Алгебра", "5")], vec![], vec![])), 3);
+        assert!(path.exists(), "a new id is saved");
     }
 
     #[test]

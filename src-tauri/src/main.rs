@@ -62,6 +62,8 @@ fn main() {
             commands::restore_session,
             commands::login,
             commands::logout,
+            commands::forget_session,
+            commands::secret_store,
             commands::student,
             commands::class_info,
             commands::week,

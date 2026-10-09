@@ -58,6 +58,9 @@ pub fn read_archive(data: &[u8]) -> Result<(String, Option<Media>), String> {
             if buf.len() > background::MAX_BYTES {
                 return Err("Фон в архиве больше 300 МБ".into());
             }
+            if media.is_some() {
+                return Err("В архиве больше одного файла фона".into()); // never silently pick one of two
+            }
             media = Some(Media { ext, bytes: buf });
         }
     }
@@ -158,5 +161,7 @@ mod tests {
         assert!(read_archive(&zip_with(&[("config.json", vec![b' '; 70_000])])).is_err(), "config too big");
         assert!(read_archive(b"not a zip at all").is_err());
         assert!(read_archive(&zip_with(&[("config.json", vec![0xff, 0xfe])])).is_err(), "not utf-8");
+        let two = zip_with(&[("config.json", b"{}".to_vec()), ("background.png", b"x".to_vec()), ("background.mp4", b"y".to_vec())]);
+        assert!(read_archive(&two).is_err(), "two backgrounds in one archive are refused, not silently resolved");
     }
 }

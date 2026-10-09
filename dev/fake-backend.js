@@ -52,8 +52,13 @@
     if (cmd === 'import_config') { const m = (location.hash.match(/imp=(\w+)/) || [])[1]; if (m === 'cancel') return null; if (m === 'bad') return { config: '{"format":"nope"}', background: null };
       return { config: JSON.stringify({ format: 'openschool-config', version: 1, style: 'sunrise', scheme: 'dark', accent: '#aa3355', bg: { mode: 'gradient', a: '#2193B0', b: '#6DD5ED', angle: 90, dim: 999, blur: -4 } }), background: null }; }
     await new Promise((r) => setTimeout(r, /slow=1/.test(location.hash) ? 400 : 30)); // `#slow=1` makes the fake server slow
+    if (cmd === 'secret_store') { const nostore = /store=none/.test(location.hash); return { available: !nostore, has_session: !nostore }; }
+    if (cmd === 'forget_session') { window.__forgotten = (window.__forgotten || 0) + 1; return null; }
+    if ((window.__offline || /net=off/.test(location.hash)) && ['restore_session', 'student', 'class_info', 'week'].includes(cmd)) throw 'OFFLINE'; // `#net=off` or `window.__offline = true`: Gosuslugi cannot be reached
+    if (window.__http && ['restore_session', 'student', 'class_info', 'week'].includes(cmd)) throw `network error: HTTP ${window.__http} Service Unavailable: x`;
+    if (window.__expire && ['student', 'class_info', 'week', 'news_feed'].includes(cmd)) throw 'SESSION_EXPIRED'; // `window.__expire = true` makes the fake server reject the session
     if (cmd === 'restore_session') return mode !== 'login';
-    if (cmd === 'login') return true;
+    if (cmd === 'login') { window.__expire = false; return true; }
     if (cmd === 'logout') return null;
     if (cmd === 'eyedropper_available') return (location.hash.match(/eye=(\w+)/) || [])[1] !== 'none';
     if (cmd === 'pick_color') { const m = (location.hash.match(/pick=(\w+)/) || [])[1]; if (m === 'cancel') return null; if (m === 'err') throw 'KWin не отвечает'; return '#3366CC'; }

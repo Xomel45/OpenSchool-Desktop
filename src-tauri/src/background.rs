@@ -4,8 +4,6 @@
 //! range requests supported). Tauri's `asset:` protocol was tried first: WebKitGTK shows pictures from it but refuses
 //! videos (MediaError 4), while plain HTTP is the path every web view plays video from.
 
-use std::collections::hash_map::RandomState;
-use std::hash::{BuildHasher, Hasher};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
@@ -44,7 +42,18 @@ fn content_type(path: &Path) -> &'static str {
 fn remove_all(dir: &Path) {
     if let Ok(rd) = std::fs::read_dir(dir) {
         for e in rd.flatten() {
-            if e.file_name().to_string_lossy().starts_with("bg") {
+            if e.file_name().to_string_lossy().starts_with("bg-") {
+                let _ = std::fs::remove_file(e.path());
+            }
+        }
+    }
+}
+
+/// Delete every stored background (and leftovers of a failed write) except `keep`.
+fn remove_all_except(dir: &Path, keep: &Path) {
+    if let Ok(rd) = std::fs::read_dir(dir) {
+        for e in rd.flatten() {
+            if e.path() != keep && e.file_name().to_string_lossy().starts_with("bg-") {
                 let _ = std::fs::remove_file(e.path());
             }
         }
@@ -54,7 +63,7 @@ fn remove_all(dir: &Path) {
 fn stored_file(dir: &Path) -> Option<PathBuf> {
     std::fs::read_dir(dir).ok()?.flatten().map(|e| e.path()).find(|p| {
         p.is_file()
-            && p.file_name().is_some_and(|n| n.to_string_lossy().starts_with("bg"))
+            && p.file_name().is_some_and(|n| n.to_string_lossy().starts_with("bg-"))
             && p.extension().is_some_and(|x| EXTENSIONS.contains(&x.to_string_lossy().to_ascii_lowercase().as_str()))
     })
 }
@@ -69,13 +78,12 @@ struct Server {
 
 static SERVER: OnceLock<Server> = OnceLock::new();
 
-fn random_token() -> String {
-    let mut s = String::new();
-    for _ in 0..2 {
-        // RandomState is keyed from the OS random generator.
-        s.push_str(&format!("{:016x}", RandomState::new().build_hasher().finish()));
-    }
-    s
+/// 128 random bits from the operating system's generator, as hex. If the system generator fails the app cannot
+/// serve a background safely, so that is an error (never a guessable token).
+fn random_token() -> Result<String, String> {
+    let mut bytes = [0u8; 16];
+    getrandom::fill(&mut bytes).map_err(|e| format!("no system randomness: {e}"))?;
+    Ok(bytes.iter().map(|b| format!("{b:02x}")).collect())
 }
 
 fn server() -> Result<&'static Server, String> {
@@ -84,7 +92,8 @@ fn server() -> Result<&'static Server, String> {
     }
     let listener = TcpListener::bind(("127.0.0.1", 0)).map_err(|e| e.to_string())?;
     let port = listener.local_addr().map_err(|e| e.to_string())?.port();
-    let s = SERVER.get_or_init(|| Server { port, token: random_token(), file: Mutex::new(None) });
+    let token = random_token()?;
+    let s = SERVER.get_or_init(|| Server { port, token, file: Mutex::new(None) });
     // If two callers raced, the loser's listener is simply dropped; only the winner's port is announced.
     if s.port == port {
         std::thread::spawn(move || {
@@ -144,6 +153,7 @@ fn handle(mut stream: TcpStream) -> std::io::Result<()> {
     let mut lines = text.lines();
     let mut first = lines.next().unwrap_or("").split_whitespace();
     let (method, path) = (first.next().unwrap_or(""), first.next().unwrap_or(""));
+    let path = path.split('?').next().unwrap_or(path); // a cache-busting `?t=1` from a player must not turn into a 404
     let range = lines.find_map(|l| {
         let (k, v) = l.split_once(':')?;
         k.eq_ignore_ascii_case("range").then(|| v.to_string())
@@ -212,11 +222,18 @@ pub async fn set_background(app: AppHandle, request: tauri::ipc::Request<'_>) ->
 pub fn store(app: &AppHandle, ext: &str, bytes: &[u8]) -> Result<String, String> {
     let dir = dir(app)?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    remove_all(&dir);
     // A new name every time, so the web view never shows a cached older file.
     let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
     let path = dir.join(format!("bg-{stamp}.{ext}"));
-    std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+    // The new file is written completely (under a temporary name) before the old one is touched:
+    // a full disk or a missing permission must not leave the user without any background.
+    let part = dir.join(format!("bg-{stamp}.part"));
+    let written = std::fs::write(&part, bytes).and_then(|()| std::fs::rename(&part, &path));
+    if let Err(e) = written {
+        let _ = std::fs::remove_file(&part);
+        return Err(e.to_string());
+    }
+    remove_all_except(&dir, &path);
     publish(&path)
 }
 
@@ -244,7 +261,7 @@ pub fn clear_background(app: AppHandle) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{clean_ext, parse_range, publish};
+    use super::{clean_ext, parse_range, publish, random_token, remove_all, remove_all_except, stored_file};
     use std::io::{Read, Write};
 
     fn get(url: &str, extra: &str) -> Vec<u8> {
@@ -280,6 +297,9 @@ mod tests {
         assert!(head.contains("Content-Range: bytes 1000-1999/200000"));
         assert_eq!(&part[head_end..], &data[1000..2000]);
 
+        let with_query = get(&format!("{url}?t=123"), "");
+        assert!(String::from_utf8_lossy(&with_query).starts_with("HTTP/1.1 200"), "a cache-busting query must not break the URL");
+
         let late = get(&url, "Range: bytes=999999-\r\n");
         assert!(String::from_utf8_lossy(&late).starts_with("HTTP/1.1 416"));
 
@@ -300,6 +320,33 @@ mod tests {
         assert_eq!(clean_ext("exe"), None);
         assert_eq!(clean_ext("../x"), None);
         assert_eq!(clean_ext(""), None);
+    }
+
+    #[test]
+    fn only_our_own_files_are_ever_touched_and_the_old_one_survives_until_the_new_one_is_in() {
+        let dir = std::env::temp_dir().join(format!("openschool-bg-keep-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        for n in ["bg-1.png", "bg-2.part", "bg_notes.txt", "bgconfig.json", "other.png"] {
+            std::fs::write(dir.join(n), b"x").unwrap();
+        }
+        remove_all_except(&dir, &dir.join("bg-1.png"));
+        let mut left: Vec<String> = std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+        left.sort();
+        assert_eq!(left, ["bg-1.png", "bg_notes.txt", "bgconfig.json", "other.png"], "stale parts go, foreign files stay");
+        assert_eq!(stored_file(&dir).and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned())).as_deref(), Some("bg-1.png"));
+        remove_all(&dir);
+        assert!(stored_file(&dir).is_none());
+        assert!(dir.join("bg_notes.txt").exists() && dir.join("other.png").exists());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn tokens_are_long_and_different_every_time() {
+        let (a, b) = (random_token().unwrap(), random_token().unwrap());
+        assert_eq!(a.len(), 32);
+        assert_ne!(a, b);
+        assert!(a.chars().all(|c| c.is_ascii_hexdigit()));
     }
 
     #[test]
