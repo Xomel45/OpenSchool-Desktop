@@ -16,6 +16,7 @@ function cfgParse(c) {
   // compared with a tolerance: another app may have written 1.3 as 1.2999999523162842
   const z = typeof c.zoom === 'number' ? ZOOMS.find((v) => Math.abs(v - c.zoom) < 0.001) : undefined;
   if (z !== undefined) out.zoom = z;
+  if (typeof c.icon === 'string' && APP_ICONS.some((i) => i.id === c.icon)) out.icon = c.icon;
   if (c.bg && typeof c.bg === 'object') out.bg = cleanBg(c.bg);
   const n = c.notifications;
   if (n && typeof n === 'object') {
@@ -30,7 +31,7 @@ function cfgParse(c) {
 
 /** The config.json of this device's current choices. */
 async function cfgBuild() {
-  const o = { format: 'openschool-config', version: 1, style, scheme: schemePref, accent: accentPref, zoom: zoomPref, bg: bgPref };
+  const o = { format: 'openschool-config', version: 1, style, scheme: schemePref, accent: accentPref, zoom: zoomPref, icon: iconPref, bg: bgPref };
   if (S.notify) o.notifications = { marks: S.notify.marks, homework: S.notify.homework, absences: S.notify.absences, interval_min: S.notify.interval_min, detail: S.notify.detail };
   try { const n = await invoke('net_get'); if (n && CFG_NET_MODES.includes(n.mode)) o.network = { mode: n.mode }; } catch (_) { /* the mode is just left out */ }
   return o;

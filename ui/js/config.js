@@ -7,6 +7,7 @@ async function applyConfig(c, url) {
   if (p.scheme) schemePref = p.scheme;
   if (p.accent) accentPref = p.accent;
   if (p.zoom) { zoomPref = p.zoom; pref.set('zoom', String(zoomPref)); applyZoom(); }
+  if (p.icon) { iconPref = p.icon; pref.set('icon', iconPref); applyIcon(); }
   if (p.bg) bgPref = p.bg;
   if (url) { bgFile = url; bgShown = null; }
   if (bgPref.mode === 'media' && !bgFile) bgPref.mode = 'default'; // the archive had no file and none is stored

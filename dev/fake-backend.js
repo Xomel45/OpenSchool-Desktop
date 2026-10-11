@@ -51,6 +51,7 @@
     if (cmd === 'net_test') return /net=off/.test(location.hash) ? { ...netSt, reachable: false } : netSt;
     if (cmd === 'cache_put') { try { localStorage.setItem(`fake.cache.${a.studentId}.${a.year}-${a.week}`, JSON.stringify({ json: a.json, saved_at: Date.now() - 3600e3 })); } catch (_) {} return null; }
     if (cmd === 'cache_get') { const v = localStorage.getItem(`fake.cache.${a.studentId}.${a.year}-${a.week}`); return v ? JSON.parse(v) : null; }
+    if (cmd === 'set_app_icon') { (window.__icons = window.__icons || []).push(a.id); return null; }
     if (cmd === 'dev_mode') return /dev=1/.test(location.hash);
     if (cmd === 'students') return [{ id: 'demo', first_name: 'ИВАН', last_name: 'ПЕТРОВ', middle_name: 'СЕРГЕЕВИЧ', region: '77' }].concat(/kids=2/.test(location.hash) ? [{ id: 'demo2', first_name: 'МАРИЯ', last_name: 'ПЕТРОВА', middle_name: 'СЕРГЕЕВНА', region: '77' }] : []);
     if (cmd === 'select_student') { window.__selected = a.id; return null; }

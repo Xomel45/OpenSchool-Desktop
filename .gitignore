@@ -6,3 +6,5 @@ dev/mock.html
 
 # exported OpenSchool settings (may contain your background picture)
 *.cfg
+# ...except the shared test files of the settings format (tiny, made up, no private data)
+!src-tauri/tests-data/cfg/*.cfg

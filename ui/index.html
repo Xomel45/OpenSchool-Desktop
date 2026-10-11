@@ -207,12 +207,16 @@
             </div>
             <div class="hint muted">Увеличивает или уменьшает всё приложение целиком.</div>
           </div>
+          <div class="block"><h3>Иконка приложения</h3>
+            <div class="icards" id="icon-grid" role="group" aria-label="Иконка приложения"></div>
+            <div class="hint muted">Меняет иконку окна и значка в трее. Значок в панели задач и меню системы на некоторых рабочих столах (KDE и GNOME на Wayland) берётся из установленного ярлыка и не меняется.</div>
+          </div>
           <div class="block"><h3>Перенос настроек</h3>
             <div class="bg-own">
               <button class="btn ghost" id="cfg-export">Экспорт в файл…</button>
               <button class="btn ghost" id="cfg-import">Импорт из файла…</button>
             </div>
-            <div class="hint muted" id="cfg-msg" aria-live="polite">Файл .cfg (обычный ZIP-архив): стиль, тема, акцентный цвет, фон и сам файл фона. Оценки и отметки о домашних заданиях в него не входят.</div>
+            <div class="hint muted" id="cfg-msg" aria-live="polite">Файл .cfg (обычный ZIP-архив): стиль, тема, акцентный цвет, иконка, фон и сам файл фона. Оценки и отметки о домашних заданиях в него не входят.</div>
           </div>
         </div>
         <div data-pane="notify" hidden>
@@ -327,6 +331,7 @@
 <script src="js/network.js"></script>
 <script src="js/events.js"></script>
 <script src="js/appearance.js"></script>
+<script src="js/icons.js"></script>
 <script src="js/picker.js"></script>
 <script src="js/background.js"></script>
 <script src="js/cfgformat.js"></script>

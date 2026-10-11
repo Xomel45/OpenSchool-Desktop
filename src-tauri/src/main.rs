@@ -1,6 +1,7 @@
 // Hide the console window on Windows release builds.
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
+mod appicon;
 mod background;
 mod cache;
 mod commands;
@@ -102,6 +103,7 @@ fn main() {
             cache::cache_put,
             cache::cache_get,
             commands::dev_mode,
+            appicon::set_app_icon,
             commands::students,
             commands::select_student,
             commands::session_status,
