@@ -372,6 +372,10 @@ h2{font-size:13px;margin:0;padding:12px 16px 8px;color:var(--muted);font-weight:
 /* developer mode */
 .devbar{position:sticky;top:0;z-index:50;background:#8a1c1c;color:#fff;font-size:12px;padding:3px 12px;text-align:center}
 .ava.photo{background-size:cover;background-position:center;color:transparent}
+.atts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.att{border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:999px;padding:3px 10px;font-size:12px;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.att:hover:not(:disabled){border-color:var(--accent)}
+.att:disabled{opacity:.6;cursor:progress}
 .hw-edit{margin-left:auto;border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px}
 .hw-edit:hover{color:var(--ink)}
 .dev-add{margin:6px 0 0;align-self:flex-start}
@@ -386,3 +390,6 @@ h2{font-size:13px;margin:0;padding:12px 16px 8px;color:var(--muted);font-weight:
 /* offline copy */
 .offbar{position:sticky;top:0;z-index:49;background:#6b4a1d;color:#fff;font-size:12px;padding:3px 12px;display:flex;gap:12px;justify-content:center;align-items:center}
 .offbar .linkbtn{color:#ffd9a0}
+.quiet-times{display:flex;gap:16px;align-items:center;margin-top:8px}
+.quiet-times input{margin-left:6px}
+#attnote{bottom:80px;cursor:default;word-break:break-word;font-size:13px}

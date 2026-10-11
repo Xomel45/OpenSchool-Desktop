@@ -73,6 +73,7 @@ function showToast(p, ms) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { t.hidden = true; }, ms || 6000);
 }
+$('attnote').onclick = () => { $('attnote').hidden = true; };
 $('toast').onclick = (e) => { e.stopPropagation(); $('toast').hidden = true; openFeed(); }; // stopPropagation: the "click outside the feed" handler would close it at once
 
 /** Called once the app is shown: restores the unread count and listens to what Rust finds. */
@@ -88,11 +89,18 @@ async function initNews() {
   tauriEvent.listen('session-expired', () => sessionExpired()); // the background check found the session dead
 }
 
+/** Minutes since midnight <-> "HH:MM" (the quiet hours of the settings and of the .cfg file). */
+const minToHm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const hmToMin = (s) => { const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(s)); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+
 function renderNotifySettings() {
   const s = S.notify;
   if (!s) return;
   $('nt-marks').checked = s.marks; $('nt-homework').checked = s.homework; $('nt-absences').checked = s.absences; $('nt-tray').checked = s.close_to_tray;
   if (invoke) invoke('tray_ready').then((ok) => { $('nt-tray-warn').hidden = ok; }).catch(() => {});
+  $('nt-quiet').checked = !!s.quiet;
+  $('nt-quiet-from').value = minToHm(s.quiet_from ?? 1320); $('nt-quiet-to').value = minToHm(s.quiet_to ?? 420);
+  $('nt-quiet-from').disabled = $('nt-quiet-to').disabled = !s.quiet;
   document.querySelectorAll('#nt-interval button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.v) === s.interval_min)));
   document.querySelectorAll('#nt-detail button').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.v === '1') === s.detail)));
 }
@@ -104,6 +112,9 @@ async function saveNotify(patch) {
 $('nt-marks').onchange = (e) => saveNotify({ marks: e.target.checked });
 $('nt-homework').onchange = (e) => saveNotify({ homework: e.target.checked });
 $('nt-absences').onchange = (e) => saveNotify({ absences: e.target.checked });
+$('nt-quiet').onchange = (e) => saveNotify({ quiet: e.target.checked });
+$('nt-quiet-from').onchange = (e) => { const m = hmToMin(e.target.value); if (m === null) renderNotifySettings(); else saveNotify({ quiet_from: m }); };
+$('nt-quiet-to').onchange = (e) => { const m = hmToMin(e.target.value); if (m === null) renderNotifySettings(); else saveNotify({ quiet_to: m }); };
 $('nt-tray').onchange = (e) => saveNotify({ close_to_tray: e.target.checked });
 $('nt-interval').addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (b) saveNotify({ interval_min: Number(b.dataset.v) }); });
 $('nt-detail').addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (b) saveNotify({ detail: b.dataset.v === '1' }); });

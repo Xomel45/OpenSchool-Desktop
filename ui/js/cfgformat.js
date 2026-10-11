@@ -23,6 +23,13 @@ function cfgParse(c) {
     const o = {};
     for (const k of ['marks', 'homework', 'absences', 'detail']) if (typeof n[k] === 'boolean') o[k] = n[k];
     if (CFG_INTERVALS.includes(n.interval_min)) o.interval_min = n.interval_min;
+    const q = n.quiet;
+    if (q && typeof q === 'object') {
+      if (typeof q.on === 'boolean') o.quiet = q.on;
+      const from = hmToMin(q.from), to = hmToMin(q.to);
+      if (from !== null) o.quiet_from = from;
+      if (to !== null) o.quiet_to = to;
+    }
     if (Object.keys(o).length) out.notifications = o;
   }
   if (c.network && typeof c.network === 'object' && CFG_NET_MODES.includes(c.network.mode)) out.network = { mode: c.network.mode };
@@ -32,7 +39,7 @@ function cfgParse(c) {
 /** The config.json of this device's current choices. */
 async function cfgBuild() {
   const o = { format: 'openschool-config', version: 1, style, scheme: schemePref, accent: accentPref, zoom: zoomPref, icon: iconPref, bg: bgPref };
-  if (S.notify) o.notifications = { marks: S.notify.marks, homework: S.notify.homework, absences: S.notify.absences, interval_min: S.notify.interval_min, detail: S.notify.detail };
+  if (S.notify) o.notifications = { marks: S.notify.marks, homework: S.notify.homework, absences: S.notify.absences, interval_min: S.notify.interval_min, detail: S.notify.detail, quiet: { on: !!S.notify.quiet, from: minToHm(S.notify.quiet_from ?? 1320), to: minToHm(S.notify.quiet_to ?? 420) } };
   try { const n = await invoke('net_get'); if (n && CFG_NET_MODES.includes(n.mode)) o.network = { mode: n.mode }; } catch (_) { /* the mode is just left out */ }
   return o;
 }

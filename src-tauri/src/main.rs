@@ -2,6 +2,7 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 mod appicon;
+mod attach;
 mod background;
 mod cache;
 mod commands;
@@ -111,6 +112,7 @@ fn main() {
             diag::ai_save,
             diag::ai_clean,
             appicon::set_app_icon,
+            attach::download_material,
             appicon::get_app_icon,
             commands::students,
             commands::select_student,

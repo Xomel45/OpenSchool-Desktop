@@ -36,20 +36,41 @@ pub struct Settings {
     pub detail: bool,
     /// Closing the window hides it in the tray instead of quitting (the background check then keeps running).
     pub close_to_tray: bool,
+    /// "Do not disturb at night": no system notifications between `quiet_from` and `quiet_to` (the check goes on, the feed fills).
+    pub quiet: bool,
+    /// Minutes since midnight, 0..1439.
+    pub quiet_from: u32,
+    pub quiet_to: u32,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { marks: true, homework: true, absences: false, interval_min: 15, detail: true, close_to_tray: false }
+        Self { marks: true, homework: true, absences: false, interval_min: 15, detail: true, close_to_tray: false, quiet: false, quiet_from: 22 * 60, quiet_to: 7 * 60 }
     }
 }
 
 impl Settings {
     fn sanitized(mut self) -> Self {
+        let d = Settings::default();
         if !INTERVALS.contains(&self.interval_min) {
-            self.interval_min = Settings::default().interval_min;
+            self.interval_min = d.interval_min;
+        }
+        if self.quiet_from >= 24 * 60 {
+            self.quiet_from = d.quiet_from;
+        }
+        if self.quiet_to >= 24 * 60 {
+            self.quiet_to = d.quiet_to;
         }
         self
+    }
+
+    /// Is `minute` (minutes since local midnight) inside the quiet hours? The start is quiet, the end is not; a span may run over
+    /// midnight (22:00-07:00); equal times mean "no quiet hours".
+    pub fn is_quiet(&self, minute: u32) -> bool {
+        if !self.quiet || self.quiet_from == self.quiet_to {
+            return false;
+        }
+        if self.quiet_from < self.quiet_to { (self.quiet_from..self.quiet_to).contains(&minute) } else { minute >= self.quiet_from || minute < self.quiet_to }
     }
     fn wants(&self, kind: Kind) -> bool {
         match kind {
@@ -438,9 +459,16 @@ fn session_expired(app: &AppHandle) {
     }
     let looking = app.get_webview_window("main").is_some_and(|w| w.is_visible().unwrap_or(false) && w.is_focused().unwrap_or(false));
     let _ = app.emit("session-expired", ());
-    if !looking && let Err(e) = app.notification().builder().title("Сессия истекла").body("Войдите в OpenSchool снова, иначе уведомления не придут").show() {
+    // At night nothing is shown from outside; the window says it when it is opened.
+    if !looking && !quiet_now(&news.settings()) && let Err(e) = app.notification().builder().title("Сессия истекла").body("Войдите в OpenSchool снова, иначе уведомления не придут").show() {
         eprintln!("news: notification failed: {e}");
     }
+}
+
+fn quiet_now(settings: &Settings) -> bool {
+    use chrono::Timelike;
+    let now = chrono::Local::now();
+    settings.is_quiet(now.hour() * 60 + now.minute())
 }
 
 /// A quiet toast inside the window if the user is looking at it, a system notification otherwise.
@@ -451,6 +479,10 @@ fn announce(app: &AppHandle, items: &[Event]) {
         let (title, body) = notification_text(items, detail);
         let _ = app.emit("news-new", serde_json::json!({ "title": title, "body": body, "kinds": items.iter().map(|e| e.kind.as_str()).collect::<Vec<_>>(), "value": items.first().and_then(|e| e.value.clone()) }));
     } else {
+        // Quiet hours: nothing pops up; the items are in the feed (the bell) all the same.
+        if quiet_now(&app.state::<News>().settings()) {
+            return;
+        }
         let (title, body) = notification_text(items, detail);
         if let Err(e) = app.notification().builder().title(title).body(body).show() {
             eprintln!("news: notification failed: {e}");
@@ -549,6 +581,26 @@ pub fn init(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn quiet_hours_cover_the_night_across_midnight_and_include_only_their_start() {
+        let night = Settings { quiet: true, quiet_from: 22 * 60, quiet_to: 7 * 60, ..Settings::default() };
+        for (m, quiet) in [(22 * 60, true), (22 * 60 - 1, false), (23 * 60 + 59, true), (0, true), (6 * 60 + 59, true), (7 * 60, false), (12 * 60, false)] {
+            assert_eq!(night.is_quiet(m), quiet, "{m}");
+        }
+        let day = Settings { quiet: true, quiet_from: 13 * 60, quiet_to: 15 * 60, ..Settings::default() };
+        assert!(day.is_quiet(13 * 60) && day.is_quiet(14 * 60 + 59) && !day.is_quiet(15 * 60) && !day.is_quiet(3 * 60));
+        assert!(!Settings { quiet: false, ..night.clone() }.is_quiet(0), "off means off");
+        assert!(!Settings { quiet_from: 480, quiet_to: 480, ..night }.is_quiet(480), "equal times: no quiet hours");
+    }
+
+    #[test]
+    fn broken_quiet_times_from_a_file_fall_back_to_the_defaults() {
+        let s = Settings { quiet_from: 5000, quiet_to: 24 * 60, interval_min: 7, ..Settings::default() }.sanitized();
+        assert_eq!((s.quiet_from, s.quiet_to, s.interval_min), (22 * 60, 7 * 60, 15));
+        let old: Settings = serde_json::from_str(r#"{"marks":false}"#).unwrap();
+        assert!(!old.quiet && old.quiet_from == 22 * 60, "a settings file from before has no quiet fields");
+    }
+
     use super::*;
     use openschool_bridge::{Absence, Homework, Lesson, Mark, Teacher};
 

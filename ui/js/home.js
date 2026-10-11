@@ -68,7 +68,7 @@ function lessonCardHtml(r, sub) {
     ? r.marks.map((m) => `<span class="big ${cls(m.value)}">${esc(m.value)}</span> <span style="margin:0 14px 0 8px" class="muted">${esc(m.work_name || m.work_type || '')}</span>`).join('')
     : '<span class="muted">Пока нет</span>';
   const hw = r.hw.length
-    ? r.hw.map((h) => `<div>${esc(h.description || 'Без текста')}${h.materials.length ? `<div class="muted">${h.materials.map((x) => '📎 ' + esc(x.name)).join(', ')}</div>` : ''}</div>`).join('')
+    ? r.hw.map((h) => `<div>${esc(h.description || 'Без текста')}${attHtml(h)}</div>`).join('')
     : '<span class="muted">Не задано</span>';
   return `<h1>${esc(l.subject_name)}</h1><div class="sub">${esc(sub)}</div>
   <dl class="facts"><div><dt>Номер урока</dt><dd>${r.n}-й</dd></div><div><dt>Время</dt><dd>${esc(hm(l.start))}–${esc(hm(l.end))}</dd></div><div><dt>Ведёт</dt><dd>${esc(teacherName(l.teacher) || '—')}</dd></div><div><dt>Кабинет</dt><dd>${esc(l.room || '—')}</dd></div></dl>

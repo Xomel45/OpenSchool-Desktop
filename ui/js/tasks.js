@@ -13,7 +13,7 @@ function taskDays(p, page) {
 const dayWord = (d) => { const diff = Math.round((d - S.today) / 864e5); return diff === 0 ? 'сегодня' : diff === 1 ? 'завтра' : diff === -1 ? 'вчера' : ''; };
 
 function taskCard(r, key) {
-  const hw = r.hw.map((h) => `<label class="hw${done[h.id] ? ' done' : ''}"><input type="checkbox" data-id="${esc(h.id)}"${done[h.id] ? ' checked' : ''}><span>${esc(h.description || 'Без текста')}${h.materials.length ? `<div class="muted">${h.materials.map((x) => '📎 ' + esc(x.name)).join(', ')}</div>` : ''}</span></label>`).join('');
+  const hw = r.hw.map((h) => `<label class="hw${done[h.id] ? ' done' : ''}"><input type="checkbox" data-id="${esc(h.id)}"${done[h.id] ? ' checked' : ''}><span>${esc(h.description || 'Без текста')}${attHtml(h)}</span></label>`).join('');
   return `<div class="ls" data-date="${esc(key)}" data-lid="${esc(r.l.id)}"><button class="lh"><div class="row"><span class="n">${r.n}</span><span class="nm">${esc(r.l.subject_name)}</span></div><div class="when">${esc(hm(r.l.start))}–${esc(hm(r.l.end))}</div></button>${hw}</div>`;
 }
 

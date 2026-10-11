@@ -240,6 +240,14 @@
             </div>
             <div class="hint muted">Второй вариант: текст не виден, если рядом кто-то смотрит на экран.</div>
           </div>
+          <div class="block"><h3>Не беспокоить ночью</h3>
+            <label class="tg"><span>Не показывать уведомления в эти часы</span><input type="checkbox" role="switch" id="nt-quiet"></label>
+            <div class="bg-own quiet-times">
+              <label>с <input type="time" id="nt-quiet-from" value="22:00"></label>
+              <label>до <input type="time" id="nt-quiet-to" value="07:00"></label>
+            </div>
+            <div class="hint muted">В тихие часы уведомления не всплывают, но проверка идёт, а новое видно в колокольчике. Сообщение о конце сессии ночью тоже не придёт: приложение скажет о нём, когда его откроют. Если «с» и «до» совпадают, тихих часов нет.</div>
+          </div>
           <div class="block"><h3>Окно</h3>
             <label class="tg"><span>Сворачивать в трей при закрытии</span><input type="checkbox" role="switch" id="nt-tray"></label>
             <div class="hint warn" id="nt-tray-warn" hidden>Значок в трее не создан (на этом рабочем столе его нет или он недоступен). Пока так, закрытие окна будет закрывать приложение, а не прятать его.</div>
@@ -334,6 +342,7 @@
   <div id="feed-list"></div>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div class="toast" id="attnote" role="status" aria-live="polite" hidden></div>
 <div id="tip" role="tooltip"></div>
 <script src="js/core.js"></script>
 <script src="js/home.js"></script>
@@ -352,6 +361,7 @@
 <script src="js/config.js"></script>
 <script src="js/account.js"></script>
 <script src="js/offline.js"></script>
+<script src="js/attachments.js"></script>
 <script src="js/dev.js"></script>
 <script src="js/aidebug.js"></script>
 <script src="js/main.js"></script>

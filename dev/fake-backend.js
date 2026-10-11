@@ -35,7 +35,7 @@
     { id: 'm:1', kind: 'mark', title: 'Алгебра', text: 'Контрольная работа · 8 октября', value: '5', date: '2026-10-08', ts: nowS - 600, read: false },
     { id: 'h:2', kind: 'homework', title: 'Литература', text: 'Прочитать главу 5, пересказ · на 9 октября', value: null, date: '2026-10-09', ts: nowS - 3 * 3600, read: false },
     { id: 'm:3', kind: 'mark', title: 'История', text: 'Устный ответ · 7 октября', value: '3', date: '2026-10-07', ts: nowS - 30 * 3600, read: true }] : [];
-  let notify = { marks: true, homework: true, absences: false, interval_min: 15, detail: true, close_to_tray: false };
+  let notify = { marks: true, homework: true, absences: false, interval_min: 15, detail: true, close_to_tray: false, quiet: false, quiet_from: 1320, quiet_to: 420 };
   window.__fakeEmit = (name, payload) => (listeners[name] || []).forEach((cb) => cb({ payload }));
   if (/toast=1/.test(location.hash)) setTimeout(() => window.__fakeEmit('news-new', { title: 'Новая оценка: Физика — 4', body: 'Обычная отметка · 8 октября', kinds: ['mark'], value: '4' }), 3000);
   let netSt = { mode: 'auto', direct: false, reachable: null, country: null };
@@ -54,7 +54,8 @@
     if (cmd === 'ai_debug_mode') return /ai=1/.test(location.hash);
     if (cmd === 'ai_clean') return a.text;
     if (cmd === 'ai_save') { window.__aiSaved = a.text; return '~/ai-debug.txt'; }
-    if (cmd === 'ai_facts') return { version: '0.1.0', tauri: '2.x', build: 'debug', os: 'linux', arch: 'x86_64', desktop: 'KDE', session_type: 'wayland', webview: '2.52', language: 'ru_RU', tray: true, dev_flag: false, uptime_s: 42, net: { mode: 'auto', direct: false, reachable: true, country: 'RU' }, notify: { marks: true, homework: true, absences: false, interval_min: 15, detail: true, close_to_tray: false }, secret_store: { available: true, has_session: true }, cache_minutes: [3, 70], events: [{ seconds_ago: 5, what: 'week', outcome: 'ok', ms: 120 }] };
+    if (cmd === 'ai_facts') return { version: '0.1.0', tauri: '2.x', build: 'debug', os: 'linux', arch: 'x86_64', desktop: 'KDE', session_type: 'wayland', webview: '2.52', language: 'ru_RU', tray: true, dev_flag: false, uptime_s: 42, net: { mode: 'auto', direct: false, reachable: true, country: 'RU' }, notify: { marks: true, homework: true, absences: false, interval_min: 15, detail: true, close_to_tray: false, quiet: false, quiet_from: 1320, quiet_to: 420 }, secret_store: { available: true, has_session: true }, cache_minutes: [3, 70], events: [{ seconds_ago: 5, what: 'week', outcome: 'ok', ms: 120 }] };
+    if (cmd === 'download_material') { (window.__downloads = window.__downloads || []).push(a); if (/dl=err/.test(location.hash)) throw 'HTTP 403'; return { path: '~/Загрузки/OpenSchool/' + a.name, opened: !/dl=save/.test(location.hash) }; }
     if (cmd === 'get_app_icon') return window.__savedIcon || null;
     if (cmd === 'set_app_icon') { (window.__icons = window.__icons || []).push(a.id); return null; }
     if (cmd === 'dev_mode') return /dev=1/.test(location.hash);
