@@ -1,14 +1,13 @@
 'use strict';
 // ---------- export / import of the whole look as one .cfg (a zip made by the app) ----------
-const configObject = () => ({ format: 'openschool-config', version: 1, style, scheme: schemePref, accent: accentPref, zoom: zoomPref, bg: bgPref });
-/** Take over an imported configuration; every field is checked, nothing is trusted. `url` is the imported background, if any. */
-function applyConfig(c, url) {
-  if (!c || typeof c !== 'object' || c.format !== 'openschool-config') throw new Error('это не файл настроек OpenSchool');
-  if (STYLES.includes(c.style)) style = c.style;
-  if (SCHEMES.includes(c.scheme)) schemePref = c.scheme;
-  if (typeof c.accent === 'string' && (c.accent === 'default' || ACCENTS[c.accent] || HEX.test(c.accent))) accentPref = c.accent;
-  if (ZOOMS.includes(c.zoom)) { zoomPref = c.zoom; pref.set('zoom', String(zoomPref)); applyZoom(); }
-  bgPref = cleanBg(c.bg);
+/** Take over an imported configuration (already checked by `cfgParse`). `url` is the imported background, if any. */
+async function applyConfig(c, url) {
+  const p = cfgParse(c);
+  if (p.style) style = p.style;
+  if (p.scheme) schemePref = p.scheme;
+  if (p.accent) accentPref = p.accent;
+  if (p.zoom) { zoomPref = p.zoom; pref.set('zoom', String(zoomPref)); applyZoom(); }
+  if (p.bg) bgPref = p.bg;
   if (url) { bgFile = url; bgShown = null; }
   if (bgPref.mode === 'media' && !bgFile) bgPref.mode = 'default'; // the archive had no file and none is stored
   if (bgPref.kind === 'image' && url && /\.(mp4|webm)$/i.test(url)) bgPref.kind = 'video'; // trust the real file, not the claim
@@ -17,11 +16,13 @@ function applyConfig(c, url) {
   cpOpen(false);
   bgShown = null;
   applyAppearance(); applyBackground();
+  if (p.notifications) await saveNotify(p.notifications);
+  if (p.network) await netCall('net_set', { mode: p.network.mode });
 }
 $('cfg-export').onclick = async () => {
   $('cfg-msg').textContent = 'Выберите, куда сохранить…';
   try {
-    const path = await invoke('export_config', { config: JSON.stringify(configObject(), null, 2) });
+    const path = await invoke('export_config', { config: JSON.stringify(await cfgBuild(), null, 2) });
     $('cfg-msg').textContent = path ? `Сохранено: ${path}` : 'Отменено.';
   } catch (e) { $('cfg-msg').textContent = `Не удалось сохранить: ${e}`; }
 };
@@ -30,7 +31,7 @@ $('cfg-import').onclick = async () => {
   try {
     const got = await invoke('import_config');
     if (!got) { $('cfg-msg').textContent = 'Отменено.'; return; }
-    applyConfig(JSON.parse(got.config), got.background);
+    await applyConfig(JSON.parse(got.config), got.background);
     $('cfg-msg').textContent = 'Настройки импортированы.';
   } catch (e) { $('cfg-msg').textContent = `Не удалось импортировать: ${e instanceof Error ? e.message : e}`; }
 };

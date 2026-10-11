@@ -128,6 +128,32 @@ pub async fn import_config(app: AppHandle) -> Result<Option<Imported>, String> {
 mod tests {
     use super::*;
 
+    /// The shared test files of the format (OpenSchool-Bridge/docs/cfg): every app must read them the same way.
+    fn fixture(name: &str) -> Vec<u8> {
+        std::fs::read(format!("{}/tests-data/cfg/{name}", env!("CARGO_MANIFEST_DIR"))).unwrap()
+    }
+
+    #[test]
+    fn the_shared_files_of_the_format_are_read_as_the_spec_says() {
+        let (c, m) = read_archive(&fixture("minimal.cfg")).unwrap();
+        assert!(c.contains("openschool-config") && m.is_none());
+        let (c, m) = read_archive(&fixture("full.cfg")).unwrap();
+        assert!(c.contains("\"notifications\"") && c.contains("\"network\"") && m.is_none());
+        let (_, m) = read_archive(&fixture("with-image.cfg")).unwrap();
+        let m = m.expect("a picture");
+        assert_eq!((m.ext.as_str(), &m.bytes[1..4]), ("png", &b"PNG"[..]));
+        let (_, m) = read_archive(&fixture("with-video.cfg")).unwrap();
+        assert_eq!(m.expect("a video").ext, "mp4");
+        // hostile: the real config.json is the top-level one, the strange entries are ignored, nothing is taken from them
+        // what the apps wrote themselves
+        for f in ["from-desktop.cfg", "from-android.cfg"] {
+            let (c, m) = read_archive(&fixture(f)).unwrap();
+            assert!(c.contains("openschool-config") && c.contains("\"notifications\"") && m.is_none(), "{f}");
+        }
+        let (c, m) = read_archive(&fixture("hostile.cfg")).unwrap();
+        assert!(c.contains("teleport") && !c.contains("\"other\"") && m.is_none());
+    }
+
     #[test]
     fn roundtrip_with_and_without_media() {
         let media = Media { ext: "mp4".into(), bytes: (0..=255u8).cycle().take(100_000).collect() };
