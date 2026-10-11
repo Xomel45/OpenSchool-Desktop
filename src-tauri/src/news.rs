@@ -249,6 +249,13 @@ impl News {
         write_json(&self.dir.join("news.json"), d);
     }
 
+    /// The student the background check follows (the UI selected another one of the account).
+    pub fn set_student(&self, id: String) {
+        if let Ok(mut s) = self.student.lock() {
+            *s = Some(id);
+        }
+    }
+
     /// A confirmed login (a restored session or a new one): checks may run, and the student is looked up again (it may be another account).
     pub fn logged_in(&self) {
         self.active.store(true, Ordering::SeqCst);
@@ -389,7 +396,9 @@ pub async fn check(app: &AppHandle) -> Result<usize, CheckError> {
         let student = match known {
             Some(s) => s,
             None => {
-                let s = client.students().await?.into_iter().next().ok_or("no student".to_string())?.id;
+                let all = client.students().await?;
+                let chosen = app.state::<AppState>().selected();
+                let s = all.iter().find(|s| Some(&s.id) == chosen.as_ref()).or(all.first()).ok_or("no student".to_string())?.id.clone();
                 *news.student.lock().map_err(|e| e.to_string())? = Some(s.clone());
                 s
             }
@@ -499,6 +508,16 @@ pub fn news_feed(news: State<'_, News>) -> FeedView {
 }
 
 /// Mark items read: the given ids, or everything when `ids` is empty.
+/// Empty the feed (the seen ids stay, so nothing comes back).
+#[tauri::command]
+pub fn news_clear(app: AppHandle, news: State<'_, News>) {
+    if let Ok(mut d) = news.data.lock() {
+        d.feed.clear();
+        news.save_data(&d);
+    }
+    let _ = app.emit("news-updated", serde_json::json!({ "unread": 0 }));
+}
+
 #[tauri::command]
 pub fn news_read(app: AppHandle, news: State<'_, News>, ids: Vec<String>) -> usize {
     if let Ok(mut d) = news.data.lock() {

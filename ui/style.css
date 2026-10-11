@@ -356,3 +356,8 @@ h2{font-size:13px;margin:0;padding:12px 16px 8px;color:var(--muted);font-weight:
   @keyframes appin{from{opacity:0;transform:translateY(10px)}}
   #marks.arrive{animation:appin .4s ease both}
 }
+
+/* account page */
+.acc-card{display:flex;align-items:center;gap:14px}
+.acc-card b{font-size:16px}
+.btn.danger{color:var(--g2)}

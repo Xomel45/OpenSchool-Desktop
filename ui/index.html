@@ -255,7 +255,28 @@
         <div data-pane="account" hidden>
           <h1>Аккаунт</h1>
           <div class="sub">Ученик, к которому привязан вход</div>
-          <div class="block"><div id="set-acc" style="margin-bottom:12px"></div><button class="btn ghost" id="set-logout">Выйти из аккаунта</button></div>
+          <div class="block">
+            <div class="acc-card"><span class="ava" id="acc-ava"></span><div><b id="acc-name"></b><div class="muted" id="acc-class"></div></div></div>
+          </div>
+          <div class="block" id="acc-pickbox" hidden><h3>Ученик</h3>
+            <div class="seg" id="acc-pick" role="group" aria-label="Ученик"></div>
+            <div class="hint muted">К этому входу привязано несколько учеников. Выбранный показывается на всех страницах и в уведомлениях.</div>
+          </div>
+          <div class="block"><h3>Сведения</h3><dl class="facts" id="acc-facts"></dl></div>
+          <div class="block"><h3>Сессия</h3>
+            <button class="btn ghost" id="acc-check">Проверить сессию</button>
+            <div class="hint muted" id="acc-msg" aria-live="polite"></div>
+            <div class="hint muted">Пароль приложение не хранит: оно запоминает только сессию Госуслуг в хранилище секретов системы.</div>
+          </div>
+          <div class="block"><h3>Данные на компьютере</h3>
+            <div class="bg-own">
+              <button class="btn ghost" id="acc-resetdone">Сбросить «сделано»</button>
+              <button class="btn ghost" id="acc-clearfeed">Очистить ленту</button>
+            </div>
+            <div class="hint muted" id="acc-datamsg" aria-live="polite">Отметки «сделано» у домашних заданий и лента «Что нового» хранятся только на этом компьютере.</div>
+          </div>
+          <div class="block"><button class="btn ghost danger" id="set-logout">Выйти из аккаунта</button>
+            <div class="hint muted" id="acc-logouthint">Сохранённая сессия и лента «Что нового» будут удалены, окно входа Госуслуг забудет вход. Настройки внешнего вида останутся.</div></div>
         </div>
         <div data-pane="about" hidden>
           <h1>О приложении</h1>
@@ -300,6 +321,7 @@
 <script src="js/picker.js"></script>
 <script src="js/background.js"></script>
 <script src="js/config.js"></script>
+<script src="js/account.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

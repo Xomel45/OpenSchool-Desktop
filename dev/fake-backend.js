@@ -49,6 +49,10 @@
     if (cmd === 'net_get') return netSt;
     if (cmd === 'net_set') { netSt = { mode: a.mode, direct: a.mode === 'direct' || (a.mode === 'auto' && /proxy=bad/.test(location.hash)), reachable: null, country: a.mode === 'auto' ? (/proxy=bad/.test(location.hash) ? 'DE' : 'RU') : null }; return netSt; }
     if (cmd === 'net_test') return /net=off/.test(location.hash) ? { ...netSt, reachable: false } : netSt;
+    if (cmd === 'students') return [{ id: 'demo', first_name: 'ИВАН', last_name: 'ПЕТРОВ', middle_name: 'СЕРГЕЕВИЧ', region: '77' }].concat(/kids=2/.test(location.hash) ? [{ id: 'demo2', first_name: 'МАРИЯ', last_name: 'ПЕТРОВА', middle_name: 'СЕРГЕЕВНА', region: '77' }] : []);
+    if (cmd === 'select_student') { window.__selected = a.id; return null; }
+    if (cmd === 'session_status') return !/sess=bad/.test(location.hash);
+    if (cmd === 'news_clear') { feed.length = 0; window.__fakeEmit('news-updated', { unread: 0 }); return null; }
     if (cmd === 'notify_get') return notify;
     if (cmd === 'notify_set') { window.__notifySaved = a.settings; notify = a.settings; return notify; }
     if (cmd === 'news_check_now') return /checkfail=1/.test(location.hash) ? Promise.reject('нет сети') : 2;
@@ -67,7 +71,7 @@
     if (cmd === 'logout') return null;
     if (cmd === 'eyedropper_available') return (location.hash.match(/eye=(\w+)/) || [])[1] !== 'none';
     if (cmd === 'pick_color') { const m = (location.hash.match(/pick=(\w+)/) || [])[1]; if (m === 'cancel') return null; if (m === 'err') throw 'KWin не отвечает'; return '#3366CC'; }
-    if (cmd === 'student') return { id: 'demo', first_name: 'ИВАН', last_name: 'ИВАНОВ', middle_name: 'ИВАНОВИЧ', region: '41' };
+    if (cmd === 'student') return window.__selected === 'demo2' ? { id: 'demo2', first_name: 'МАРИЯ', last_name: 'ПЕТРОВА', middle_name: 'СЕРГЕЕВНА', region: '77' } : { id: 'demo', first_name: 'ИВАН', last_name: 'ИВАНОВ', middle_name: 'ИВАНОВИЧ', region: '41' };
     if (cmd === 'class_info') return { school_name: 'Школа №1', class_number: '8', class_letter: 'Б', academic_year: y, quarters: [
       { number: 1, start_date: `${y}-09-01`, end_date: `${y}-10-27` }, { number: 2, start_date: `${y}-11-03`, end_date: `${y}-12-29` }, { number: 3, start_date: `${y + 1}-01-11`, end_date: `${y + 1}-03-18` }, { number: 4, start_date: `${y + 1}-03-25`, end_date: `${y + 1}-05-30` }] };
     if (cmd === 'week') { window.__calls = (window.__calls || 0) + 1; if (mode === 'fail') throw 'сеть недоступна'; return week(a.year, a.isoWeek); }

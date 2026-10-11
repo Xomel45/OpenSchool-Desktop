@@ -22,15 +22,25 @@ pub struct AppState {
     client: Mutex<Arc<Client>>,
     /// Gosuslugi is reached without any proxy (see `net`). Read when a client is made.
     direct: AtomicBool,
+    /// The student of the account that is shown (an account can have several); `None` = the first one.
+    selected: Mutex<Option<String>>,
 }
 
 impl AppState {
     fn new() -> Self {
-        Self { client: Mutex::new(Arc::new(Client::new().expect("http client"))), direct: AtomicBool::new(false) }
+        Self { client: Mutex::new(Arc::new(Client::new().expect("http client"))), direct: AtomicBool::new(false), selected: Mutex::new(None) }
     }
 
     fn make_client(&self) -> Arc<Client> {
         Arc::new(if self.is_direct() { Client::direct() } else { Client::new() }.expect("http client"))
+    }
+
+    pub fn selected(&self) -> Option<String> {
+        self.selected.lock().expect("selected lock").clone()
+    }
+
+    pub fn select(&self, id: Option<String>) {
+        *self.selected.lock().expect("selected lock") = id;
     }
 
     pub fn is_direct(&self) -> bool {
@@ -88,6 +98,9 @@ fn main() {
             commands::secret_store,
             commands::tray_ready,
             commands::student,
+            commands::students,
+            commands::select_student,
+            commands::session_status,
             commands::class_info,
             commands::week,
             commands::eyedropper_available,
@@ -104,6 +117,7 @@ fn main() {
             news::notify_set,
             news::news_feed,
             news::news_read,
+            news::news_clear,
             news::news_check_now,
         ])
         .run(tauri::generate_context!())

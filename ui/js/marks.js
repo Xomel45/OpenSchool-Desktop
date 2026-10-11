@@ -120,7 +120,7 @@ function settingsSection(name) {
 
 async function renderSettings() {
   const s = S.student, c = S.cls;
-  $('set-acc').textContent = s ? `${titleCase(s.first_name)} ${titleCase(s.last_name)}${c ? ` · ${c.class_number} «${c.class_letter}»` : ''}`.trim() : '';
+  renderAccount();
   let ver = 'dev';
   try { if (window.__TAURI__ && window.__TAURI__.app) ver = await window.__TAURI__.app.getVersion(); } catch (_) { /* keep "dev" */ }
   $('set-about').textContent = `OpenSchool ${ver}. Неофициальный клиент «Моя школа» (Госуслуги).`;

@@ -13,7 +13,13 @@ $('loginbtn').onclick = async () => {
 };
 async function logout() { await invoke('logout'); closeFeed(false); S.feed = []; renderBell(0); S.weekReqs.clear(); S.lessonsById.clear(); S.byDate.clear(); S.marks.clear(); S.hw.clear(); view('home'); showLogin(); }
 $('logout').onclick = logout;
-$('set-logout').onclick = logout;
+// the settings button asks twice: the first click arms it, the second (within 5 s) does it
+let logoutArmed = null;
+$('set-logout').onclick = () => {
+  if (logoutArmed) { clearTimeout(logoutArmed); logoutArmed = null; $('set-logout').textContent = 'Выйти из аккаунта'; logout(); return; }
+  $('set-logout').textContent = 'Точно выйти? Нажмите ещё раз';
+  logoutArmed = setTimeout(() => { logoutArmed = null; $('set-logout').textContent = 'Выйти из аккаунта'; }, 5000);
+};
 $('nav-home').onclick = () => view('home');
 $('nav-settings').onclick = () => view('settings');
 $('nav-schedule').onclick = () => view('schedule');

@@ -112,6 +112,7 @@ pub async fn logout(app: AppHandle, state: State<'_, AppState>, news: State<'_, 
     // account straight back in and another student can never be chosen.
     login::forget_profile(&app);
     news.reset();
+    state.select(None);
     state.reset_client();
     Ok(())
 }
@@ -119,7 +120,40 @@ pub async fn logout(app: AppHandle, state: State<'_, AppState>, news: State<'_, 
 #[tauri::command]
 pub async fn student(state: State<'_, AppState>) -> Result<Student, String> {
     let students = state.client().students().await.map_err(err)?;
-    students.into_iter().next().ok_or_else(|| "К этому аккаунту не привязан ученик. Войдите под аккаунтом ученика.".to_string())
+    pick_student(students, state.selected().as_deref()).ok_or_else(|| "К этому аккаунту не привязан ученик. Войдите под аккаунтом ученика.".to_string())
+}
+
+/// The selected student if it is still in the list, otherwise the first one.
+fn pick_student(students: Vec<Student>, selected: Option<&str>) -> Option<Student> {
+    let mut students = students;
+    match selected.and_then(|id| students.iter().position(|s| s.id == id)) {
+        Some(i) => Some(students.swap_remove(i)),
+        None => students.into_iter().next(),
+    }
+}
+
+/// Every student linked to the account (a parent's account has several).
+#[tauri::command]
+pub async fn students(state: State<'_, AppState>) -> Result<Vec<Student>, String> {
+    state.client().students().await.map_err(err)
+}
+
+/// Show another student of the account: the UI reloads its pages, the background check follows.
+#[tauri::command]
+pub async fn select_student(state: State<'_, AppState>, news: State<'_, crate::news::News>, id: String) -> Result<(), String> {
+    let all = state.client().students().await.map_err(err)?;
+    if !all.iter().any(|s| s.id == id) {
+        return Err("Такого ученика нет у этого аккаунта".into());
+    }
+    state.select(Some(id.clone()));
+    news.set_student(id);
+    Ok(())
+}
+
+/// Does the server still accept the saved session? `true` yes, `false` no (the UI then offers a new login).
+#[tauri::command]
+pub async fn session_status(state: State<'_, AppState>) -> Result<bool, String> {
+    state.client().check_session().await.map_err(err)
 }
 
 #[tauri::command]
@@ -158,7 +192,21 @@ pub async fn pick_color() -> Result<Option<String>, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{err, OFFLINE, SESSION_EXPIRED};
+    fn st(id: &str) -> Student {
+        Student { id: id.into(), first_name: "A".into(), last_name: "B".into(), middle_name: String::new(), region: String::new() }
+    }
+
+    #[test]
+    fn the_selected_student_wins_and_a_stale_choice_falls_back_to_the_first() {
+        let all = || vec![st("1"), st("2"), st("3")];
+        assert_eq!(pick_student(all(), None).unwrap().id, "1");
+        assert_eq!(pick_student(all(), Some("3")).unwrap().id, "3");
+        assert_eq!(pick_student(all(), Some("gone")).unwrap().id, "1", "a student that left the account is not shown");
+        assert!(pick_student(Vec::new(), Some("1")).is_none());
+    }
+
+    use super::{err, pick_student, OFFLINE, SESSION_EXPIRED};
+    use openschool_bridge::Student;
     use openschool_bridge::BridgeError;
 
     #[test]
