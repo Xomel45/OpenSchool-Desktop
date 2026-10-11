@@ -121,6 +121,7 @@ function settingsSection(name) {
 async function renderSettings() {
   const s = S.student, c = S.cls;
   renderAccount();
+  if (DEV.on) devRenderPane();
   let ver = 'dev';
   try { if (window.__TAURI__ && window.__TAURI__.app) ver = await window.__TAURI__.app.getVersion(); } catch (_) { /* keep "dev" */ }
   $('set-about').textContent = `OpenSchool ${ver}. Неофициальный клиент «Моя школа» (Госуслуги).`;

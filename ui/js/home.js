@@ -1,11 +1,11 @@
 'use strict';
 // ---------- rendering ----------
 function renderStudent() {
-  const s = S.student;
+  const s = devStudent();
   const name = `${titleCase(s.first_name)} ${titleCase(s.last_name)}`.trim();
   $('sname').textContent = name;
-  $('ava').textContent = ((s.first_name || '')[0] || '') + ((s.last_name || '')[0] || '');
-  const c = S.cls;
+  devAvatar($('ava'), ((s.first_name || '')[0] || '') + ((s.last_name || '')[0] || ''));
+  const c = devClass();
   $('sclass').textContent = c ? `${c.class_number} «${c.class_letter}»${c.school_name ? ' · ' + c.school_name : ''}` : '';
 }
 
@@ -74,7 +74,7 @@ function lessonCardHtml(r, sub) {
   <dl class="facts"><div><dt>Номер урока</dt><dd>${r.n}-й</dd></div><div><dt>Время</dt><dd>${esc(hm(l.start))}–${esc(hm(l.end))}</dd></div><div><dt>Ведёт</dt><dd>${esc(teacherName(l.teacher) || '—')}</dd></div><div><dt>Кабинет</dt><dd>${esc(l.room || '—')}</dd></div></dl>
   <div class="block"><h3>Тема урока</h3>${l.theme ? esc(l.theme) : '<span class="muted">Не указана</span>'}</div>
   <div class="block"><h3>Домашнее задание</h3>${hw}</div>
-  <div class="block"><h3>Оценка</h3>${mk}${l.absence ? `<div class="abs">Пропуск: ${esc(l.absence.description || l.absence.code || 'без пояснения')}</div>` : ''}</div>`;
+  <div class="block"><h3>Оценка</h3>${mk}${l.absence ? `<div class="abs">Пропуск: ${esc(l.absence.description || l.absence.code || 'без пояснения')}</div>` : ''}</div>${devLessonButtons(l)}`;
 }
 
 function renderMain() {

@@ -113,6 +113,7 @@ pub async fn logout(app: AppHandle, state: State<'_, AppState>, news: State<'_, 
     login::forget_profile(&app);
     news.reset();
     state.select(None);
+    crate::cache::clear(&app); // the cached weeks belong to the account
     state.reset_client();
     Ok(())
 }
@@ -130,6 +131,12 @@ fn pick_student(students: Vec<Student>, selected: Option<&str>) -> Option<Studen
         Some(i) => Some(students.swap_remove(i)),
         None => students.into_iter().next(),
     }
+}
+
+/// Was the app started with `--dev` or `--develop`? (The developer mode: the UI lets the user change what it shows.)
+#[tauri::command]
+pub fn dev_mode() -> bool {
+    std::env::args().skip(1).any(|a| a == "--dev" || a == "--develop")
 }
 
 /// Every student linked to the account (a parent's account has several).

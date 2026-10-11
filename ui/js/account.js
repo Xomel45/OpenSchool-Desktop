@@ -1,9 +1,9 @@
 'use strict';
 // ---------- account page: who is signed in, which student, the session, what is kept on this computer ----------
 function renderAccount() {
-  const s = S.student, c = S.cls;
+  const s = devStudent(), c = devClass();
   if (!s) return;
-  $('acc-ava').textContent = ((s.first_name || '')[0] || '') + ((s.last_name || '')[0] || '');
+  devAvatar($('acc-ava'), ((s.first_name || '')[0] || '') + ((s.last_name || '')[0] || ''));
   $('acc-name').textContent = [s.last_name, s.first_name, s.middle_name].filter(Boolean).map(titleCase).join(' ');
   $('acc-class').textContent = c ? `${c.class_number} «${c.class_letter}»${c.school_name ? ' · ' + c.school_name : ''}` : '';
   const t = isoDate(S.today), qs = c ? c.quarters : [];
@@ -29,7 +29,7 @@ $('acc-pick').addEventListener('click', async (e) => {
   try {
     await invoke('select_student', { id: b.dataset.id });
     // Everything shown belongs to the old student: forget it and start again from the home page.
-    S.weekReqs.clear(); S.lessonsById.clear(); S.byDate.clear(); S.marks.clear(); S.hw.clear(); S.gp = null; S.week = null;
+    S.rawWeeks.clear(); S.weekReqs.clear(); S.lessonsById.clear(); S.byDate.clear(); S.marks.clear(); S.hw.clear(); S.gp = null; S.week = null;
     show('boot'); await start(); view('settings'); settingsSection('account');
   } catch (err) { $('acc-msg').textContent = `Не удалось переключить: ${err}`; }
 });

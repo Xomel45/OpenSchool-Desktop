@@ -37,7 +37,7 @@ function renderWeek() {
       body = `<div class="empty">${weekend ? 'Выходной день' : d > S.today ? 'Не опубликовано' : 'Уроков нет'}</div>`;
     }
     const isPicked = !!S.picked && sameDay(d, S.picked);
-    cols.push(`<section class="dcol${isToday ? ' today' : ''}${isPicked ? ' picked' : ''}${!rows.length && weekend ? ' off' : ''}"${isPicked ? ' aria-current="date"' : ''} aria-label="${esc(WD[(i + 1) % 7])}, ${d.getDate()} ${esc(MON[d.getMonth()])}"><h3>${WD_SHORT[i]}, ${d.getDate()} ${MON_SHORT[d.getMonth()]}${isToday ? '<small>сегодня</small>' : isPicked ? '<small>выбрано</small>' : ''}</h3>${body}</section>`);
+    cols.push(`<section data-date="${key}" class="dcol${isToday ? ' today' : ''}${isPicked ? ' picked' : ''}${!rows.length && weekend ? ' off' : ''}"${isPicked ? ' aria-current="date"' : ''} aria-label="${esc(WD[(i + 1) % 7])}, ${d.getDate()} ${esc(MON[d.getMonth()])}"><h3>${WD_SHORT[i]}, ${d.getDate()} ${MON_SHORT[d.getMonth()]}${isToday ? '<small>сегодня</small>' : isPicked ? '<small>выбрано</small>' : ''}</h3>${body}</section>`);
   }
   $('wgrid').innerHTML = cols.join('');
 }

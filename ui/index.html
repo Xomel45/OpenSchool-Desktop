@@ -20,6 +20,8 @@
   </div>
 </div>
 
+<div id="devbar" class="devbar" hidden></div>
+<div id="offbar" class="offbar" hidden><span id="offbar-text"></span><button class="linkbtn" id="offbar-retry">Обновить</button></div>
 <div id="app" hidden style="display:contents">
   <header class="bar">
     <div class="logo">OpenSchool</div>
@@ -103,6 +105,7 @@
         <button data-sec="notify">Уведомления</button>
         <button data-sec="network">Сеть</button>
         <button data-sec="account">Аккаунт</button>
+        <button data-sec="dev" id="dev-nav" hidden>Для разработчика</button>
         <button data-sec="about">О приложении</button>
       </nav>
       <section class="box main setbody">
@@ -278,6 +281,11 @@
           <div class="block"><button class="btn ghost danger" id="set-logout">Выйти из аккаунта</button>
             <div class="hint muted" id="acc-logouthint">Сохранённая сессия и лента «Что нового» будут удалены, окно входа Госуслуг забудет вход. Настройки внешнего вида останутся.</div></div>
         </div>
+        <div data-pane="dev" hidden>
+          <h1>Для разработчика</h1>
+          <div class="sub">Правки видны только здесь, на сервер ничего не уходит. Оценки не меняются.</div>
+          <div id="dev-body"></div>
+        </div>
         <div data-pane="about" hidden>
           <h1>О приложении</h1>
           <div class="sub">Версия и источник данных</div>
@@ -298,6 +306,7 @@
   <div class="cal-grid" id="cal-grid"></div>
   <div class="cal-foot"><button class="btn ghost" id="cal-today">Сегодня</button></div>
 </div>
+<dialog id="devdlg" class="dlg devdlg"><form method="dialog" id="devdlg-form"></form></dialog>
 <dialog id="lessondlg" class="dlg">
   <div class="dlg-bar"><button class="dlg-close" id="lessondlg-close" aria-label="Закрыть">×</button></div>
   <div class="main dlg-body" id="lessondlg-body"></div>
@@ -322,6 +331,8 @@
 <script src="js/background.js"></script>
 <script src="js/config.js"></script>
 <script src="js/account.js"></script>
+<script src="js/offline.js"></script>
+<script src="js/dev.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

@@ -35,7 +35,7 @@ const academicYear = (d) => (d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear
 // ---------- state ----------
 const S = {
   student: null, cls: null, today: null, cur: null, sel: null, day: [], min: null, max: null,
-  weekReqs: new Map(), lessonsById: new Map(), byDate: new Map(), marks: new Map(), hw: new Map(), token: 0, wtoken: 0, week: null, picked: null, gp: null, gtoken: 0,
+  stale: new Set(), offlineSince: null, rawWeeks: new Map(), weekReqs: new Map(), lessonsById: new Map(), byDate: new Map(), marks: new Map(), hw: new Map(), token: 0, wtoken: 0, week: null, picked: null, gp: null, gtoken: 0,
 };
 
 let done = {};
@@ -45,7 +45,16 @@ function setDone(id, v) {
   try { localStorage.setItem('openschool.hwdone', JSON.stringify(done)); } catch (_) { /* storage may be unavailable */ }
 }
 
+/** A week as the server sent it is kept; what the pages read is built from it (with the developer mode's changes, when it is on). */
 function merge(w) {
+  S.rawWeeks.set(`${w.year}-${w.iso_week}`, w);
+  ingest(devApplyWeek(w));
+}
+function rebuildMaps() {
+  S.lessonsById.clear(); S.byDate.clear(); S.marks.clear(); S.hw.clear();
+  for (const w of S.rawWeeks.values()) ingest(devApplyWeek(w));
+}
+function ingest(w) {
   for (const l of w.lessons) {
     S.lessonsById.set(l.id, l);
     const k = l.start.slice(0, 10);
@@ -61,8 +70,14 @@ function loadWeek(d) {
   const k = `${year}-${week}`;
   if (!S.weekReqs.has(k)) {
     S.weekReqs.set(k, invoke('week', { studentId: S.student.id, year, isoWeek: week })
-      .then((w) => { merge(w); return w; })
-      .catch((e) => { S.weekReqs.delete(k); throw e; }));
+      .then((w) => { merge(w); weekFetched(k, year, week, w); return w; })
+      .catch(async (e) => {
+        // No connection: the last copy of the week is better than an error. It is asked for again next time.
+        const cached = e === 'OFFLINE' ? await cachedWeek(year, week) : null;
+        if (cached) { S.stale.add(k); markOffline(cached.at); merge(cached.week); S.weekReqs.delete(k); return cached.week; }
+        S.weekReqs.delete(k);
+        throw e;
+      }));
   }
   return S.weekReqs.get(k);
 }

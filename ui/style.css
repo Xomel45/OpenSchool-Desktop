@@ -361,3 +361,21 @@ h2{font-size:13px;margin:0;padding:12px 16px 8px;color:var(--muted);font-weight:
 .acc-card{display:flex;align-items:center;gap:14px}
 .acc-card b{font-size:16px}
 .btn.danger{color:var(--g2)}
+
+/* developer mode */
+.devbar{position:sticky;top:0;z-index:50;background:#8a1c1c;color:#fff;font-size:12px;padding:3px 12px;text-align:center}
+.ava.photo{background-size:cover;background-position:center;color:transparent}
+.hw-edit{margin-left:auto;border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px}
+.hw-edit:hover{color:var(--ink)}
+.dev-add{margin:6px 0 0;align-self:flex-start}
+.devacts{display:flex;gap:8px;flex-wrap:wrap}
+.devf{display:flex;flex-direction:column;gap:3px;margin:0 0 8px;font-size:12px;color:var(--muted)}
+.devf input,.devf textarea{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:calc(var(--radius) - 6px);padding:8px 10px}
+.devdlg{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);color:var(--ink);padding:18px;min-width:min(420px,92vw)}
+.devdlg::backdrop{background:rgba(0,0,0,.5)}
+.devdlg h2{margin:0 0 12px;font-size:16px;color:var(--ink);padding:0}
+.devbtns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+
+/* offline copy */
+.offbar{position:sticky;top:0;z-index:49;background:#6b4a1d;color:#fff;font-size:12px;padding:3px 12px;display:flex;gap:12px;justify-content:center;align-items:center}
+.offbar .linkbtn{color:#ffd9a0}

@@ -11,7 +11,7 @@ $('loginbtn').onclick = async () => {
     } else showLogin('Окно входа закрыто');
   } catch (e) { showLogin(String(e)); }
 };
-async function logout() { await invoke('logout'); closeFeed(false); S.feed = []; renderBell(0); S.weekReqs.clear(); S.lessonsById.clear(); S.byDate.clear(); S.marks.clear(); S.hw.clear(); view('home'); showLogin(); }
+async function logout() { await invoke('logout'); closeFeed(false); S.feed = []; renderBell(0); offlineReset(); S.rawWeeks.clear(); S.weekReqs.clear(); S.lessonsById.clear(); S.byDate.clear(); S.marks.clear(); S.hw.clear(); view('home'); showLogin(); }
 $('logout').onclick = logout;
 // the settings button asks twice: the first click arms it, the second (within 5 s) does it
 let logoutArmed = null;

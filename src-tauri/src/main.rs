@@ -2,6 +2,7 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 mod background;
+mod cache;
 mod commands;
 mod config_file;
 mod eyedropper;
@@ -98,6 +99,9 @@ fn main() {
             commands::secret_store,
             commands::tray_ready,
             commands::student,
+            cache::cache_put,
+            cache::cache_get,
+            commands::dev_mode,
             commands::students,
             commands::select_student,
             commands::session_status,
