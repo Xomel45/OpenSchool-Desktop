@@ -270,7 +270,7 @@ new MutationObserver(devDecorate).observe(document.body, { childList: true, subt
 async function initDev() {
   try { DEV.on = !!(invoke && await invoke('dev_mode')); } catch (_) { DEV.on = false; }
   $('dev-nav').hidden = !DEV.on;
-  applyIcon(); // the developer-only icons show (or the choice falls back) now that the flag is known
+  renderIcons(); // the developer-only icons show (or the choice falls back) now that the flag is known
   applyIcon();
   if (!DEV.on) return;
   devRenderBanner();

@@ -72,6 +72,7 @@ function showLogin(msg) {
 const BOOT_HTML = '<span class="spin" aria-hidden="true"></span><span>Загрузка…</span>';
 async function boot() {
   await initDev(); // the developer flag decides what the first weeks are built from
+  initAiDebug();
   if (!invoke) { $('boot-msg').textContent = 'Запустите приложение через Tauri: это окно открыто вне его.'; return; }
   try {
     if (await invoke('restore_session')) await start(); else showLogin();

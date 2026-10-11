@@ -152,6 +152,7 @@ h2{font-size:13px;margin:0;padding:12px 16px 8px;color:var(--muted);font-weight:
 .icard[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .icard[hidden]{display:none}
 .icard img{border-radius:14px}
+.ai-out{margin:12px 0 0;max-height:60vh;overflow:auto;white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,monospace;background:var(--soft);border:1px solid var(--line);border-radius:var(--radius);padding:12px;color:var(--ink);user-select:text}
 .tprev{display:block;height:104px;border-radius:calc(var(--radius) - 4px);padding:12px;margin-bottom:8px;background-color:var(--bg);background-image:var(--pageglow);font-family:var(--font)}
 .tprev .pp{display:block;height:100%;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:10px}
 .tprev .pl{display:block;height:7px;width:70%;background:var(--muted);opacity:.5;border-radius:4px;margin-bottom:6px}

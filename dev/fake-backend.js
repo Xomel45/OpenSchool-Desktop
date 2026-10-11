@@ -51,6 +51,11 @@
     if (cmd === 'net_test') return /net=off/.test(location.hash) ? { ...netSt, reachable: false } : netSt;
     if (cmd === 'cache_put') { try { localStorage.setItem(`fake.cache.${a.studentId}.${a.year}-${a.week}`, JSON.stringify({ json: a.json, saved_at: Date.now() - 3600e3 })); } catch (_) {} return null; }
     if (cmd === 'cache_get') { const v = localStorage.getItem(`fake.cache.${a.studentId}.${a.year}-${a.week}`); return v ? JSON.parse(v) : null; }
+    if (cmd === 'ai_debug_mode') return /ai=1/.test(location.hash);
+    if (cmd === 'ai_clean') return a.text;
+    if (cmd === 'ai_save') { window.__aiSaved = a.text; return '~/ai-debug.txt'; }
+    if (cmd === 'ai_facts') return { version: '0.1.0', tauri: '2.x', build: 'debug', os: 'linux', arch: 'x86_64', desktop: 'KDE', session_type: 'wayland', webview: '2.52', language: 'ru_RU', tray: true, dev_flag: false, uptime_s: 42, net: { mode: 'auto', direct: false, reachable: true, country: 'RU' }, notify: { marks: true, homework: true, absences: false, interval_min: 15, detail: true, close_to_tray: false }, secret_store: { available: true, has_session: true }, cache_minutes: [3, 70], events: [{ seconds_ago: 5, what: 'week', outcome: 'ok', ms: 120 }] };
+    if (cmd === 'get_app_icon') return window.__savedIcon || null;
     if (cmd === 'set_app_icon') { (window.__icons = window.__icons || []).push(a.id); return null; }
     if (cmd === 'dev_mode') return /dev=1/.test(location.hash);
     if (cmd === 'students') return [{ id: 'demo', first_name: 'ИВАН', last_name: 'ПЕТРОВ', middle_name: 'СЕРГЕЕВИЧ', region: '77' }].concat(/kids=2/.test(location.hash) ? [{ id: 'demo2', first_name: 'МАРИЯ', last_name: 'ПЕТРОВА', middle_name: 'СЕРГЕЕВНА', region: '77' }] : []);

@@ -40,7 +40,7 @@ pub async fn restore_session(state: State<'_, AppState>, news: State<'_, crate::
     crate::net::resolve(&net, &state).await; // proxy or direct: decided before the saved session goes into the client
     let client = state.client();
     client.set_session(cookies);
-    match client.check_session().await {
+    match crate::diag::timed("restore_session", client.check_session()).await {
         Ok(true) => {
             news.logged_in(); // the saved session works: the background check may start
             Ok(true)
@@ -61,6 +61,7 @@ pub async fn login(app: AppHandle, state: State<'_, AppState>, news: State<'_, c
     crate::net::resolve(&net, &state).await;
     state.reset_client(); // every login starts from a clean client, nothing of an older session survives in its cookie jar
     let ok = login::run(&app, state.client(), state.is_direct()).await?;
+    crate::diag::note("login", if ok { "completed" } else { "window closed" });
     if ok {
         news.logged_in(); // a fresh session: the background check may run again, for whoever just logged in
     }
@@ -120,7 +121,7 @@ pub async fn logout(app: AppHandle, state: State<'_, AppState>, news: State<'_, 
 
 #[tauri::command]
 pub async fn student(state: State<'_, AppState>) -> Result<Student, String> {
-    let students = state.client().students().await.map_err(err)?;
+    let students = crate::diag::timed("students", state.client().students()).await.map_err(err)?;
     pick_student(students, state.selected().as_deref()).ok_or_else(|| "К этому аккаунту не привязан ученик. Войдите под аккаунтом ученика.".to_string())
 }
 
@@ -148,7 +149,7 @@ pub async fn students(state: State<'_, AppState>) -> Result<Vec<Student>, String
 /// Show another student of the account: the UI reloads its pages, the background check follows.
 #[tauri::command]
 pub async fn select_student(state: State<'_, AppState>, news: State<'_, crate::news::News>, id: String) -> Result<(), String> {
-    let all = state.client().students().await.map_err(err)?;
+    let all = crate::diag::timed("students", state.client().students()).await.map_err(err)?;
     if !all.iter().any(|s| s.id == id) {
         return Err("Такого ученика нет у этого аккаунта".into());
     }
@@ -160,7 +161,7 @@ pub async fn select_student(state: State<'_, AppState>, news: State<'_, crate::n
 /// Does the server still accept the saved session? `true` yes, `false` no (the UI then offers a new login).
 #[tauri::command]
 pub async fn session_status(state: State<'_, AppState>) -> Result<bool, String> {
-    state.client().check_session().await.map_err(err)
+    crate::diag::timed("check_session", state.client().check_session()).await.map_err(err)
 }
 
 #[tauri::command]
@@ -169,7 +170,7 @@ pub async fn class_info(
     student_id: String,
     year: u32,
 ) -> Result<Option<ClassInfo>, String> {
-    state.client().class_info(student_id, year).await.map_err(err)
+    crate::diag::timed("class_info", state.client().class_info(student_id, year)).await.map_err(err)
 }
 
 #[tauri::command]
@@ -179,7 +180,7 @@ pub async fn week(
     year: u32,
     iso_week: u32,
 ) -> Result<Week, String> {
-    state.client().week(student_id, year, iso_week).await.map_err(err)
+    crate::diag::timed("week", state.client().week(student_id, year, iso_week)).await.map_err(err)
 }
 
 /// Whether the screen eyedropper works here (KDE Plasma only for now).

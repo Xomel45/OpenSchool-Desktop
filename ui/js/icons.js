@@ -38,6 +38,10 @@ function renderIcons() {
 
 function applyIcon() {
   renderIcons();
-  if (invoke) invoke('set_app_icon', { id: effectiveIcon() }).catch(() => {}); // the picture is a nicety
+  if (invoke) invoke('set_app_icon', { id: iconPref }).catch(() => {}); // the program keeps the choice (and falls back for a developer-only icon itself)
 }
-applyIcon();
+renderIcons();
+// The program keeps the choice (it sets the icon at start): take it over when this page remembers something else.
+if (invoke) invoke('get_app_icon').then((id) => {
+  if (id && id !== iconPref && APP_ICONS.some((i) => i.id === id)) { iconPref = id; pref.set('icon', id); renderIcons(); }
+}).catch(() => {});

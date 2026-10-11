@@ -6,6 +6,7 @@ mod background;
 mod cache;
 mod commands;
 mod config_file;
+mod diag;
 mod eyedropper;
 mod login;
 mod net;
@@ -64,6 +65,7 @@ impl AppState {
 }
 
 fn main() {
+    diag::init();
     tauri::Builder::default()
         // Must be the first plugin: a second launch (a click on the shortcut while the window sits in the tray) only
         // brings the running instance forward, instead of starting a second background check and a second local server.
@@ -79,6 +81,7 @@ fn main() {
             if let Err(e) = tray::build(app.handle()) {
                 eprintln!("tray unavailable: {e}");
             }
+            appicon::restore(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -103,7 +106,12 @@ fn main() {
             cache::cache_put,
             cache::cache_get,
             commands::dev_mode,
+            diag::ai_debug_mode,
+            diag::ai_facts,
+            diag::ai_save,
+            diag::ai_clean,
             appicon::set_app_icon,
+            appicon::get_app_icon,
             commands::students,
             commands::select_student,
             commands::session_status,

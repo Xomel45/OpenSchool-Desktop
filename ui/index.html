@@ -106,6 +106,7 @@
         <button data-sec="network">Сеть</button>
         <button data-sec="account">Аккаунт</button>
         <button data-sec="dev" id="dev-nav" hidden>Для разработчика</button>
+        <button data-sec="ai" id="ai-nav" hidden>Диагностика для ИИ</button>
         <button data-sec="about">О приложении</button>
       </nav>
       <section class="box main setbody">
@@ -290,6 +291,19 @@
           <div class="sub">Правки видны только здесь, на сервер ничего не уходит. Оценки не меняются.</div>
           <div id="dev-body"></div>
         </div>
+        <div data-pane="ai" hidden>
+          <h1>Диагностика для ИИ</h1>
+          <div class="sub">Включено запуском с --ai-debug (или -ad)</div>
+          <div class="block">
+            <div class="bg-own">
+              <button class="btn ghost" id="ai-refresh">Обновить</button>
+              <button class="btn" id="ai-copy">Скопировать</button>
+              <button class="btn ghost" id="ai-save">Сохранить в файл</button>
+            </div>
+            <div class="hint muted" id="ai-msg" aria-live="polite">Нажмите «Обновить»: соберу отчёт о состоянии программы без личных данных, его можно показать ИИ.</div>
+            <pre class="ai-out" id="ai-out"></pre>
+          </div>
+        </div>
         <div data-pane="about" hidden>
           <h1>О приложении</h1>
           <div class="sub">Версия и источник данных</div>
@@ -339,6 +353,7 @@
 <script src="js/account.js"></script>
 <script src="js/offline.js"></script>
 <script src="js/dev.js"></script>
+<script src="js/aidebug.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

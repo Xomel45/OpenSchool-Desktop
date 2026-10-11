@@ -86,6 +86,25 @@ pub fn cache_get(app: AppHandle, student_id: String, year: u32, week: u32) -> Op
     get_from(&root(&app).ok()?, &student_id, year, week)
 }
 
+/// How old each cached week is, in minutes, oldest last (names and contents stay private: for the `--ai-debug` report).
+pub fn ages_minutes(app: &AppHandle) -> Vec<u64> {
+    let now = std::time::SystemTime::now();
+    let mut ages = Vec::new();
+    if let Ok(root) = root(app)
+        && let Ok(students) = fs::read_dir(root)
+    {
+        for s in students.flatten() {
+            for w in fs::read_dir(s.path()).into_iter().flatten().flatten() {
+                if let Ok(m) = w.metadata().and_then(|m| m.modified()) {
+                    ages.push(now.duration_since(m).map(|d| d.as_secs() / 60).unwrap_or(0));
+                }
+            }
+        }
+    }
+    ages.sort_unstable();
+    ages
+}
+
 /// Forget everything (logout).
 pub fn clear(app: &AppHandle) {
     if let Ok(r) = root(app) {
