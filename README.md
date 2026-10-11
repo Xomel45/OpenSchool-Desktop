@@ -30,6 +30,22 @@
 
 Проект молодой. Интерфейс проверялся на вымышленных данных в настоящем WebKit и вручную на Linux. Если что-то сломалось у вас, откройте issue.
 
+## Готовые пакеты
+
+Установщики для каждого релиза лежат в разделе Releases (вместе с `SHA256SUMS.txt`). Подписи пока нет.
+
+| Система | Что скачать | Как поставить |
+|---|---|---|
+| Debian, Ubuntu, Mint (на базе Debian) | `OpenSchool_*_amd64.deb` | `sudo apt install ./OpenSchool_*_amd64.deb` |
+| Fedora, RHEL, openSUSE (на базе RedHat) | `OpenSchool-*.x86_64.rpm` | `sudo dnf install ./OpenSchool-*.x86_64.rpm` |
+| Arch, Manjaro, EndeavourOS (на базе Arch) | `openschool-*.pkg.tar.zst` или сборка из `packaging/arch` | `sudo pacman -U openschool-*.pkg.tar.zst` или `cd packaging/arch && OPENSCHOOL_UNPINNED=1 makepkg -si` |
+| NixOS, Nix | flake в корне репозитория | `nix run 'github:Xomel45/OpenSchool-Desktop?submodules=1'` |
+| Любой Linux | `OpenSchool_*_amd64.AppImage` | `chmod +x OpenSchool_*.AppImage && ./OpenSchool_*.AppImage` |
+| Windows 10/11 | `OpenSchool_*_x64-setup.exe` или `.msi` | запустить установщик (нужен WebView2, он есть в Windows 11) |
+
+Зависимости на Linux: WebKitGTK 4.1, GTK 3, libayatana-appindicator (значок в трее). Пакеты `deb`/`rpm`/`pacman` подтягивают их сами.
+Запуск с `--dev` или `--develop` включает режим разработчика (правки отображаемых данных только на этом компьютере).
+
 ## Установка из исходников
 
 Готовых сборок пока нет. Нужен [Rust](https://rustup.rs) (stable) и `tauri-cli`:

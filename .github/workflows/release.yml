@@ -1,0 +1,158 @@
+name: release
+
+# Push a tag like v0.1.0: installers for Linux and Windows are built and attached to a DRAFT release
+# (nothing is published until the draft is published by hand).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+# Read-only by default; only the job that creates the release gets write access.
+permissions:
+  contents: read
+
+jobs:
+  # The tag, the app's versions and the packaging files must say the same version.
+  versions:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Compare versions
+        run: |
+          want="${GITHUB_REF_NAME#v}"
+          cargo=$(sed -n 's/^version = "\(.*\)"/\1/p' src-tauri/Cargo.toml | head -1)
+          tauri=$(sed -n 's/.*"version": "\(.*\)".*/\1/p' src-tauri/tauri.conf.json | head -1)
+          arch=$(sed -n 's/^pkgver=//p' packaging/arch/PKGBUILD)
+          nix=$(sed -n 's/^  version = "\(.*\)";/\1/p' packaging/nix/package.nix)
+          echo "tag=$want cargo=$cargo tauri=$tauri arch=$arch nix=$nix"
+          for v in "$cargo" "$tauri" "$arch" "$nix"; do
+            if [ "$v" != "$want" ] && [ "${GITHUB_REF_TYPE}" = "tag" ]; then echo "version mismatch: $v != $want"; exit 1; fi
+          done
+
+  bundle:
+    needs: versions
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    # The 32-bit Windows build is best-effort, as in build.yml.
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ubuntu-24.04, not -latest: the image the installers are built on decides the glibc they need.
+          - { name: linux-x64,   os: ubuntu-24.04,   target: x86_64-unknown-linux-gnu, bundles: "deb,rpm,appimage", experimental: false }
+          - { name: windows-x64, os: windows-latest, target: x86_64-pc-windows-msvc,   bundles: "nsis,msi",     experimental: false }
+          - { name: windows-x86, os: windows-latest, target: i686-pc-windows-msvc,     bundles: "nsis",         experimental: true }
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Linux system libraries (WebKitGTK, GTK, D-Bus, AppImage tools)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev libgtk-3-dev libsoup-3.0-dev librsvg2-dev libxdo-dev libdbus-1-dev libayatana-appindicator3-dev pkg-config libfuse2t64 xdg-utils file
+
+      - name: NASM (needed by aws-lc-rs on Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: "src-tauri -> target"
+          key: release-${{ matrix.target }}
+
+      - name: Tauri CLI
+        uses: actions/cache@v4
+        id: tauri-cli
+        with:
+          path: ~/.cargo/bin/cargo-tauri${{ runner.os == 'Windows' && '.exe' || '' }}
+          key: tauri-cli-2-${{ runner.os }}
+      - if: steps.tauri-cli.outputs.cache-hit != 'true'
+        run: cargo install tauri-cli --version "^2" --locked
+
+      - name: Test
+        working-directory: src-tauri
+        run: cargo test --target ${{ matrix.target }}
+
+      - name: Bundle
+        run: cargo tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+        env:
+          # AppImage: linuxdeploy's `strip` fails on new binaries, and runners have no FUSE (both found when building it locally).
+          NO_STRIP: "true"
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: installers-${{ matrix.name }}
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
+            src-tauri/target/${{ matrix.target }}/release/bundle/rpm/*.rpm
+            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
+            src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
+            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe
+          if-no-files-found: error
+
+  # Arch Linux package (pacman), built the way an AUR user would build it.
+  arch:
+    needs: versions
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    container: archlinux:base-devel
+    continue-on-error: true
+    steps:
+      - name: Tools
+        run: pacman -Syu --noconfirm git cargo cmake webkit2gtk-4.1 gtk3 libayatana-appindicator dbus sudo
+      - uses: actions/checkout@v7
+      - name: makepkg (it refuses to run as root)
+        run: |
+          useradd -m builder
+          cp -r packaging/arch /home/builder/pkg
+          chown -R builder /home/builder/pkg
+          cd /home/builder/pkg
+          sudo -u builder env OPENSCHOOL_UNPINNED=1 makepkg -f --noconfirm --skipinteg
+      - uses: actions/upload-artifact@v7
+        with:
+          name: installers-arch
+          path: /home/builder/pkg/openschool-*.pkg.tar.zst
+          if-no-files-found: error
+
+  # Nix: the flake has to build (nothing is published from here).
+  nix:
+    needs: versions
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+      - run: nix build '.?submodules=1#openschool' --print-build-logs
+
+  release:
+    permissions:
+      contents: write
+    needs: [bundle, arch]
+    if: ${{ !cancelled() && needs.bundle.result == 'success' && startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          path: dist
+          pattern: installers-*
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: dist/*

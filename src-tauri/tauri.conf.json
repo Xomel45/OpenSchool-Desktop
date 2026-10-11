@@ -24,7 +24,12 @@
     }
   },
   "bundle": {
-    "active": false,
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.ico"]
+    "active": true,
+    "category": "Education",
+    "license": "MPL-2.0",
+    "homepage": "https://github.com/Xomel45/OpenSchool-Desktop",
+    "shortDescription": "Неофициальный клиент «Моя школа»",
+    "longDescription": "Расписание, оценки и домашние задания из «Моя школа» (Госуслуги). Неофициальное приложение.",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
   }
 }

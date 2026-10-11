@@ -1,0 +1,22 @@
+pkgbase = openschool
+	pkgdesc = Unofficial desktop client for «Моя школа» (Gosuslugi): schedule, marks, homework
+	pkgver = 0.1.0
+	pkgrel = 1
+	url = https://github.com/Xomel45/OpenSchool-Desktop
+	arch = x86_64
+	license = MPL-2.0
+	makedepends = cargo
+	makedepends = cmake
+	makedepends = git
+	depends = webkit2gtk-4.1
+	depends = gtk3
+	depends = libayatana-appindicator
+	depends = dbus
+	optdepends = kwallet: remember the login between starts (any Secret Service provider works)
+	optdepends = gnome-keyring: remember the login between starts (any Secret Service provider works)
+	source = openschool::git+https://github.com/Xomel45/OpenSchool-Desktop.git#tag=v0.1.0
+	source = OpenSchool-Bridge::git+https://github.com/Xomel45/OpenSchool-Bridge.git
+	sha256sums = SKIP
+	sha256sums = SKIP
+
+pkgname = openschool

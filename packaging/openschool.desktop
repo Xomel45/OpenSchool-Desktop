@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=OpenSchool
+Comment=Неофициальный клиент «Моя школа»
+Exec=openschool_desktop
+Icon=openschool_desktop
+Terminal=false
+Categories=Education;
+StartupWMClass=openschool_desktop

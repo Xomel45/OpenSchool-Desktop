@@ -3,6 +3,8 @@ name = "openschool_desktop"
 version = "0.1.0"
 edition = "2024"
 description = "OpenSchool desktop client"
+license = "MPL-2.0"
+repository = "https://github.com/Xomel45/OpenSchool-Desktop"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
