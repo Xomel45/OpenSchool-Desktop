@@ -113,8 +113,10 @@ pub async fn logout(app: AppHandle, state: State<'_, AppState>, news: State<'_, 
     // account straight back in and another student can never be chosen.
     login::forget_profile(&app);
     news.reset();
+    crate::planner::reset(&app);
     state.select(None);
     crate::cache::clear(&app); // the cached weeks belong to the account
+    crate::attach::clear(&app); // and so does the list of downloaded attachments (the files stay in Downloads)
     state.reset_client();
     Ok(())
 }

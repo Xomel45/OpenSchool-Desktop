@@ -14,18 +14,19 @@ const dayWord = (d) => { const diff = Math.round((d - S.today) / 864e5); return 
 
 function taskCard(r, key) {
   const hw = r.hw.map((h) => `<label class="hw${done[h.id] ? ' done' : ''}"><input type="checkbox" data-id="${esc(h.id)}"${done[h.id] ? ' checked' : ''}><span>${esc(h.description || 'Без текста')}${attHtml(h)}</span></label>`).join('');
-  return `<div class="ls" data-date="${esc(key)}" data-lid="${esc(r.l.id)}"><button class="lh"><div class="row"><span class="n">${r.n}</span><span class="nm">${esc(r.l.subject_name)}</span></div><div class="when">${esc(hm(r.l.start))}–${esc(hm(r.l.end))}</div></button>${hw}</div>`;
+  return `<div class="ls" data-date="${esc(key)}" data-lid="${esc(r.l.id)}"><button class="lh"><div class="row"><span class="n">${r.n}</span><span class="nm">${esc(r.l.subject_name)}</span>${testBadge(r)}</div><div class="when">${esc(hm(r.l.start))}–${esc(hm(r.l.end))}</div></button>${hw}${noteRows(r.l.id)}</div>`;
 }
 
 function renderTasks() {
+  if (S.tp === 'files') { renderDownloads(); return; }
   const days = taskDays(S.tp, S.tpage[S.tp]);
   const html = days.map((d) => {
     const key = isoDate(d), { rows, orphanHw } = buildDay(d);
-    const cards = rows.filter((r) => r.hw.length).filter((r) => !tasksOpenOnly || r.hw.some((h) => !done[h.id]));
+    const cards = rows.filter((r) => r.hw.length || notesOf(r.l.id).length).filter((r) => !tasksOpenOnly || r.hw.some((h) => !done[h.id]) || notesOf(r.l.id).some((n) => !n.done));
     const orphans = orphanHw.filter((h) => !tasksOpenOnly || !done[h.id]);
-    const any = rows.some((r) => r.hw.length) || orphanHw.length;
+    const any = rows.some((r) => r.hw.length || notesOf(r.l.id).length) || orphanHw.length;
     let body = cards.map((r) => taskCard(r, key)).join('')
-      + (orphans.length ? `<div class="ls"><div class="lh" style="cursor:default"><div class="row"><span class="nm">Задания без урока</span></div></div>${orphans.map((h) => `<label class="hw${done[h.id] ? ' done' : ''}"><input type="checkbox" data-id="${esc(h.id)}"${done[h.id] ? ' checked' : ''}><span>${esc((h.subject_name ? h.subject_name + ': ' : '') + (h.description || ''))}</span></label>`).join('')}</div>` : '');
+      + (orphans.length ? `<div class="ls"><div class="lh" style="cursor:default"><div class="row"><span class="nm">Задания без урока</span></div></div>${orphans.map((h) => `<label class="hw${done[h.id] ? ' done' : ''}"><input type="checkbox" data-id="${esc(h.id)}"${done[h.id] ? ' checked' : ''}><span>${esc((h.subject_name ? h.subject_name + ': ' : '') + (h.description || ''))}${attHtml(h)}</span></label>`).join('')}</div>` : '');
     if (!body) body = `<div class="empty">${any ? 'Всё выполнено' : !rows.length ? (d.getDay() === 0 || d.getDay() === 6 ? 'Выходной день' : d > S.today ? 'Расписание ещё не опубликовано' : 'Уроков нет') : 'Заданий нет'}</div>`;
     const w = dayWord(d);
     return `<section class="tk-day${sameDay(d, S.today) ? ' today' : ''}" aria-label="${esc(WD[d.getDay()])}, ${d.getDate()} ${esc(MON[d.getMonth()])}"><h3>${esc(WD[d.getDay()][0].toUpperCase() + WD[d.getDay()].slice(1))}, ${d.getDate()} ${esc(MON[d.getMonth()])}${w ? `<small>${w}</small>` : ''}</h3>${body}</section>`;
@@ -54,15 +55,18 @@ function tasksStep(dir) {
 }
 /** Counted from the page itself, so ticking a box updates it without redrawing (the list must not jump under the cursor). */
 function updateTasksSummary() {
-  const boxes = [...$('tk-body').querySelectorAll('input[type=checkbox]')], left = boxes.filter((b) => !b.checked).length;
+  const boxes = [...$('tk-body').querySelectorAll('input[type=checkbox][data-id]')], left = boxes.filter((b) => !b.checked).length;
   $('tk-sum').innerHTML = boxes.length ? `Не выполнено <b>${left}</b> из <b>${boxes.length}</b>` : '';
 }
 
 async function showTasks(p, page) {
-  if (p) { S.tpage[p] = page === undefined ? 0 : page; S.tp = p; } // switching tabs starts from the first page
+  if (p === 'files') S.tp = p;
+  else if (p) { S.tpage[p] = page === undefined ? 0 : page; S.tp = p; } // switching tabs starts from the first page
   else if (page !== undefined) S.tpage[S.tp] = page;
   const token = ++S.ttoken;
   document.querySelectorAll('#tk-tabs button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.p === S.tp)));
+  $('tasksview').classList.toggle('files-mode', S.tp === 'files');
+  if (S.tp === 'files') { S.tpos = undefined; showDownloads(); return; } // the list of downloaded files, not days
   $('tk-open').checked = tasksOpenOnly;
   renderTasksNav();
   const days = taskDays(S.tp, S.tpage[S.tp]);

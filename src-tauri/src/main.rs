@@ -9,11 +9,14 @@ mod commands;
 mod config_file;
 mod diag;
 mod eyedropper;
+mod ics;
 mod login;
 mod net;
 mod news;
+mod planner;
 mod store;
 mod tray;
+mod update;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -74,7 +77,11 @@ fn main() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState::new())
+        .manage(update::Updates::default())
+        .manage(planner::Planner::default())
+        .manage(tray::NowLine::default())
         .setup(|app| {
             net::init(app.handle())?;
             news::init(app.handle())?;
@@ -83,6 +90,7 @@ fn main() {
                 eprintln!("tray unavailable: {e}");
             }
             appicon::restore(app.handle());
+            update::init(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -113,6 +121,20 @@ fn main() {
             diag::ai_clean,
             appicon::set_app_icon,
             attach::download_material,
+            attach::list_downloads,
+            attach::open_download,
+            attach::reveal_download,
+            attach::delete_download,
+            attach::open_downloads_folder,
+            planner::planner_done,
+            ics::export_ics,
+            tray::set_now,
+            update::update_info,
+            update::set_update_auto,
+            update::check_update,
+            update::dismiss_update,
+            update::install_update,
+            update::open_release_page,
             appicon::get_app_icon,
             commands::students,
             commands::select_student,

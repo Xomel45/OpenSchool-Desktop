@@ -41,11 +41,16 @@ pub struct Settings {
     /// Minutes since midnight, 0..1439.
     pub quiet_from: u32,
     pub quiet_to: u32,
+    /// «Вечерняя сводка»: one notification about the next school day at `evening_at` (minutes since midnight).
+    pub evening: bool,
+    pub evening_at: u32,
+    /// Name the tests of the next school day in that notification (alone, when the summary is off).
+    pub test_reminders: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { marks: true, homework: true, absences: false, interval_min: 15, detail: true, close_to_tray: false, quiet: false, quiet_from: 22 * 60, quiet_to: 7 * 60 }
+        Self { marks: true, homework: true, absences: false, interval_min: 15, detail: true, close_to_tray: false, quiet: false, quiet_from: 22 * 60, quiet_to: 7 * 60, evening: true, evening_at: 19 * 60, test_reminders: true }
     }
 }
 
@@ -60,6 +65,9 @@ impl Settings {
         }
         if self.quiet_to >= 24 * 60 {
             self.quiet_to = d.quiet_to;
+        }
+        if self.evening_at >= 24 * 60 {
+            self.evening_at = d.evening_at;
         }
         self
     }
@@ -295,6 +303,15 @@ impl News {
         }
     }
 
+    pub fn is_active(&self) -> bool {
+        self.active.load(Ordering::SeqCst)
+    }
+
+    /// The student the background check follows, once it has looked it up.
+    pub fn student(&self) -> Option<String> {
+        self.student.lock().ok().and_then(|s| s.clone())
+    }
+
     /// The session is gone (the UI saw it expire): no more checks until the next login.
     pub fn deactivate(&self) {
         self.active.store(false, Ordering::SeqCst);
@@ -504,6 +521,7 @@ pub fn start(app: AppHandle) {
                     Err(CheckError::Other(e)) => eprintln!("news: check failed: {e}"), // offline etc.: try again next time
                 }
             }
+            crate::planner::tick(&app).await;
             tokio::time::sleep(Duration::from_secs(10)).await;
         }
     });

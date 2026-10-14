@@ -43,6 +43,7 @@ try { done = JSON.parse(localStorage.getItem('openschool.hwdone') || '{}'); } ca
 function setDone(id, v) {
   if (v) done[id] = 1; else delete done[id];
   try { localStorage.setItem('openschool.hwdone', JSON.stringify(done)); } catch (_) { /* storage may be unavailable */ }
+  syncDone(); // planner.js: the evening summary counts what is not ticked
 }
 
 /** A week as the server sent it is kept; what the pages read is built from it (with the developer mode's changes, when it is on). */

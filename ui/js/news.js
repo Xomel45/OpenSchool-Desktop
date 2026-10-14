@@ -101,6 +101,9 @@ function renderNotifySettings() {
   $('nt-quiet').checked = !!s.quiet;
   $('nt-quiet-from').value = minToHm(s.quiet_from ?? 1320); $('nt-quiet-to').value = minToHm(s.quiet_to ?? 420);
   $('nt-quiet-from').disabled = $('nt-quiet-to').disabled = !s.quiet;
+  $('nt-evening').checked = s.evening !== false; $('nt-tests').checked = s.test_reminders !== false;
+  $('nt-evening-at').value = minToHm(s.evening_at ?? 1140);
+  $('nt-evening-at').disabled = s.evening === false && s.test_reminders === false;
   document.querySelectorAll('#nt-interval button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.v) === s.interval_min)));
   document.querySelectorAll('#nt-detail button').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.v === '1') === s.detail)));
 }
@@ -115,6 +118,9 @@ $('nt-absences').onchange = (e) => saveNotify({ absences: e.target.checked });
 $('nt-quiet').onchange = (e) => saveNotify({ quiet: e.target.checked });
 $('nt-quiet-from').onchange = (e) => { const m = hmToMin(e.target.value); if (m === null) renderNotifySettings(); else saveNotify({ quiet_from: m }); };
 $('nt-quiet-to').onchange = (e) => { const m = hmToMin(e.target.value); if (m === null) renderNotifySettings(); else saveNotify({ quiet_to: m }); };
+$('nt-evening').onchange = (e) => saveNotify({ evening: e.target.checked });
+$('nt-tests').onchange = (e) => saveNotify({ test_reminders: e.target.checked });
+$('nt-evening-at').onchange = (e) => { const m = hmToMin(e.target.value); if (m === null) renderNotifySettings(); else saveNotify({ evening_at: m }); };
 $('nt-tray').onchange = (e) => saveNotify({ close_to_tray: e.target.checked });
 $('nt-interval').addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (b) saveNotify({ interval_min: Number(b.dataset.v) }); });
 $('nt-detail').addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (b) saveNotify({ detail: b.dataset.v === '1' }); });

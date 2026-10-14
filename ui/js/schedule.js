@@ -19,9 +19,9 @@ function renderWeekHead() {
 }
 
 function weekCard(r, dateKey) {
-  const hw = r.hw.map((h) => `<label class="hw${done[h.id] ? ' done' : ''}"><input type="checkbox" data-id="${esc(h.id)}"${done[h.id] ? ' checked' : ''}><span>${esc(h.description || 'Без текста')}${h.materials.length ? ' 📎' : ''}</span></label>`).join('');
+  const hw = r.hw.map((h) => `<label class="hw${done[h.id] ? ' done' : ''}"><input type="checkbox" data-id="${esc(h.id)}"${done[h.id] ? ' checked' : ''}><span><span class="hwtext">${esc(h.description || 'Без текста')}</span>${attCompact(h)}</span></label>`).join('');
   const mk = r.marks.map((m) => `<span class="chip ${cls(m.value)}" style="min-width:24px;height:24px;font-size:12px">${esc(m.value)}</span>`).join(' ');
-  return `<div class="ls ${status(r.l)}" data-date="${esc(dateKey)}" data-lid="${esc(r.l.id)}"><button class="lh"><div class="row"><span class="n">${r.n}</span><span class="nm">${esc(r.l.subject_name)}</span>${mk}</div><div class="when">${esc(hm(r.l.start))}–${esc(hm(r.l.end))}</div></button>${hw}</div>`;
+  return `<div class="ls ${status(r.l)}" data-date="${esc(dateKey)}" data-lid="${esc(r.l.id)}"><button class="lh"><div class="row"><span class="n">${r.n}</span><span class="nm">${esc(r.l.subject_name)}</span>${testBadge(r)}${mk}</div><div class="when">${esc(hm(r.l.start))}–${esc(hm(r.l.end))}</div></button>${hw}${noteRows(r.l.id)}</div>`;
 }
 
 function renderWeek() {
@@ -32,7 +32,7 @@ function renderWeek() {
     let body;
     if (rows.length) {
       body = rows.map((r) => weekCard(r, key)).join('');
-      if (orphanHw.length) body += `<div class="ls"><div class="lh" style="cursor:default"><div class="row"><span class="nm">Задания без урока</span></div></div>${orphanHw.map((h) => `<label class="hw${done[h.id] ? ' done' : ''}"><input type="checkbox" data-id="${esc(h.id)}"${done[h.id] ? ' checked' : ''}><span>${esc((h.subject_name ? h.subject_name + ': ' : '') + (h.description || ''))}</span></label>`).join('')}</div>`;
+      if (orphanHw.length) body += `<div class="ls"><div class="lh" style="cursor:default"><div class="row"><span class="nm">Задания без урока</span></div></div>${orphanHw.map((h) => `<label class="hw${done[h.id] ? ' done' : ''}"><input type="checkbox" data-id="${esc(h.id)}"${done[h.id] ? ' checked' : ''}><span><span class="hwtext">${esc((h.subject_name ? h.subject_name + ': ' : '') + (h.description || ''))}</span>${attCompact(h)}</span></label>`).join('')}</div>`;
     } else {
       body = `<div class="empty">${weekend ? 'Выходной день' : d > S.today ? 'Не опубликовано' : 'Уроков нет'}</div>`;
     }
@@ -141,6 +141,7 @@ function showLessonDialog(dateKey, lessonId, opener) {
   const day = `${WD[d.getDay()][0].toUpperCase()}${WD[d.getDay()].slice(1)}, ${d.getDate()} ${MON[d.getMonth()]}`;
   const dlg = $('lessondlg');
   $('lessondlg-body').innerHTML = lessonCardHtml(r, `${day} · ${lessonStatusText(r.l).toLowerCase()}`);
+  $('lessondlg-body').dataset.date = dateKey; // notes.js draws the card again after a change
   dlg.setAttribute('aria-label', r.l.subject_name);
   S.opener = opener || null; // focus goes back here when the pop-up closes
   if (!dlg.open) dlg.showModal();

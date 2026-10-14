@@ -33,12 +33,17 @@ async function start() {
   S.min = q ? parseDate(q[0].start_date) : new Date(academicYear(S.today), 8, 1);
   S.max = addDays(S.today, 21); // how far ahead the server publishes lessons is unknown
   initNews();
+  refreshDownloads(); // which attachments are already downloaded (marks them in the file lists)
+  syncDone();
   renderStudent();
   await setDay(S.today); // the boot screen stays until today's lessons are ready, so the page does not jump
   show('app', true);
+  nowTick(); // the window title and the tray: what lesson is on now
   // Fill the "recent marks" strip from the previous weeks too (a week holds only a few marks).
   await Promise.all([1, 2, 3, 4, 5].map((i) => loadWeek(addDays(S.today, -7 * i)).catch(() => null)));
   renderMarks();
+  // The next two weeks too: «Скоро контрольные» looks two weeks ahead.
+  Promise.all([7, 14].map((i) => loadWeek(addDays(S.today, i)).catch(() => null))).then(() => { if (S.sel === null && !$('homeview').hidden) renderMain(); });
   $('marks').classList.remove('arrive'); void $('marks').offsetWidth; $('marks').classList.add('arrive');
   if (!S.dayError) {
     S.dayData = buildDay(S.cur);

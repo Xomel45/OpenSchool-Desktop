@@ -35,7 +35,7 @@ function renderSched() {
     const hw = r.hw.map((h) => `<label class="hw${done[h.id] ? ' done' : ''}"><input type="checkbox" data-id="${esc(h.id)}"${done[h.id] ? ' checked' : ''}><span>${esc(h.description || 'Без текста')}</span></label>`).join('');
     const mk = r.marks.map((m) => `<span class="chip ${cls(m.value)}" style="min-width:26px;height:26px;font-size:13px">${esc(m.value)}</span>`).join(' ');
     const st = status(r.l);
-    return `<div class="ls ${st}" data-i="${i}" data-sel="${S.sel === i}"><button class="lh" aria-pressed="${S.sel === i}"><div class="row"><span class="n">${r.n}</span><span class="nm">${esc(r.l.subject_name)}</span>${mk}<span class="tm">${esc(hm(r.l.start))}–${esc(hm(r.l.end))}</span></div></button>${hw}</div>`;
+    return `<div class="ls ${st}" data-i="${i}" data-sel="${S.sel === i}"><button class="lh" aria-pressed="${S.sel === i}"><div class="row"><span class="n">${r.n}</span><span class="nm">${esc(r.l.subject_name)}</span>${testBadge(r)}${mk}<span class="tm">${esc(hm(r.l.start))}–${esc(hm(r.l.end))}</span></div></button>${hw}${noteRows(r.l.id)}</div>`;
   };
   const extra = orphanHw.length
     ? `<div class="ls"><div class="lh" style="cursor:default"><div class="row"><span class="nm">Задания без урока</span></div></div>${orphanHw.map((h) => `<label class="hw${done[h.id] ? ' done' : ''}"><input type="checkbox" data-id="${esc(h.id)}"${done[h.id] ? ' checked' : ''}><span>${esc((h.subject_name ? h.subject_name + ': ' : '') + (h.description || ''))}</span></label>`).join('')}</div>`
@@ -56,7 +56,7 @@ function infoHtml() {
     const left = Math.max(0, Math.ceil((b - S.today) / 864e5));
     q = `<div class="block"><h3>Четверть</h3>${ROMAN[cur.number] || cur.number} четверть: ${a.getDate()} ${MON[a.getMonth()]} – ${b.getDate()} ${MON[b.getMonth()]}<div class="meter"><i style="width:${pct}%"></i></div><span class="muted">${running ? `прошло ${pct}%, осталось ${left} дн.` : 'ещё не началась'}</span></div>`;
   }
-  return `<h1>Информация</h1><div class="sub">Четверть и школьные события</div>${q}<div class="block"><h3>Школьные мероприятия</h3><span class="muted">Пока не подключены: источник этих данных ещё не найден.</span></div>`;
+  return `<h1>Информация</h1><div class="sub">Четверть и школьные события</div>${q}${testsHtml()}<div class="block"><h3>Школьные мероприятия</h3><span class="muted">Пока не подключены: источник этих данных ещё не найден.</span></div>`;
 }
 
 const lessonStatusText = (l) => { const st = status(l); return st === 'now' ? 'Идёт сейчас' : st === 'past' ? 'Урок прошёл' : 'Ещё впереди'; };
@@ -70,10 +70,12 @@ function lessonCardHtml(r, sub) {
   const hw = r.hw.length
     ? r.hw.map((h) => `<div>${esc(h.description || 'Без текста')}${attHtml(h)}</div>`).join('')
     : '<span class="muted">Не задано</span>';
-  return `<h1>${esc(l.subject_name)}</h1><div class="sub">${esc(sub)}</div>
+  const test = lessonTest(r);
+  return `<h1>${esc(l.subject_name)}</h1><div class="sub">${esc(sub)}${test ? ` · <span class="testb">${esc(test)}</span>` : ''}</div>
   <dl class="facts"><div><dt>Номер урока</dt><dd>${r.n}-й</dd></div><div><dt>Время</dt><dd>${esc(hm(l.start))}–${esc(hm(l.end))}</dd></div><div><dt>Ведёт</dt><dd>${esc(teacherName(l.teacher) || '—')}</dd></div><div><dt>Кабинет</dt><dd>${esc(l.room || '—')}</dd></div></dl>
   <div class="block"><h3>Тема урока</h3>${l.theme ? esc(l.theme) : '<span class="muted">Не указана</span>'}</div>
   <div class="block"><h3>Домашнее задание</h3>${hw}</div>
+  ${notesBlock(l.id)}
   <div class="block"><h3>Оценка</h3>${mk}${l.absence ? `<div class="abs">Пропуск: ${esc(l.absence.description || l.absence.code || 'без пояснения')}</div>` : ''}</div>${devLessonButtons(l)}`;
 }
 

@@ -90,12 +90,12 @@ function renderSummary(range) {
 
 async function showMarks(p) {
   p = p || S.gp || defaultPeriod();
-  const order = ['1', '2', '3', '4', 'year'];
+  const order = ['1', '2', '3', '4', 'year', 'charts'];
   const dir = S.gp && S.gp !== p ? Math.sign(order.indexOf(p) - order.indexOf(S.gp)) : 0; // later period: slides from the right
   S.gp = p;
   const token = ++S.gtoken;
   document.querySelectorAll('#gr-tabs button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.p === p)));
-  const range = periodRange(p), body = $('gr-body');
+  const range = periodRange(p === 'charts' ? 'year' : p), body = $('gr-body');
   $('gr-sum').textContent = '';
   if (!range) { body.innerHTML = '<div class="gr-note">Нет данных о четвертях этого года.</div>'; return; }
   if (range.start > isoDate(S.today)) { body.innerHTML = '<div class="gr-note">Эта четверть ещё не началась.</div>'; return; }
@@ -108,7 +108,8 @@ async function showMarks(p) {
     return;
   }
   if (token !== S.gtoken) return; // the user switched the period while this one was loading
-  body.innerHTML = p === 'year' ? renderYearTable() : renderQuarterTable(gradeRows(range.start, range.end));
+  if (p === 'charts') renderCharts();
+  else body.innerHTML = p === 'year' ? renderYearTable() : renderQuarterTable(gradeRows(range.start, range.end));
   renderSummary(range);
   slideIn(body, dir);
 }

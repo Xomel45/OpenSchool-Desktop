@@ -34,6 +34,7 @@
       <button id="nav-settings">Настройки</button>
     </nav>
     <div class="sp"></div>
+    <button class="bell" id="search-btn" aria-label="Поиск" title="Поиск (Ctrl+K)" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></button>
     <button class="bell" id="bell" aria-label="Что нового" aria-haspopup="dialog" aria-expanded="false" aria-controls="feed"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 9a6 6 0 1 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><em id="bell-n" hidden>0</em></button>
     <button class="btn ghost" id="logout">Выйти</button>
   </header>
@@ -61,6 +62,7 @@
         <button class="today" id="wtoday">Эта неделя</button>
         <button id="wnext" aria-label="Следующая неделя">›</button>
         <button class="today" id="wcal" aria-haspopup="dialog" aria-expanded="false" aria-controls="cal"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 7h12M5.5 1.5v3M10.5 1.5v3"/></svg>Календарь</button>
+        <button class="today" id="wics" title="Эта неделя и все следующие опубликованные — файлом .ics для Google Календаря, KDE или телефона">В календарь (.ics)</button>
       </div>
       <div class="wk-grid" id="wgrid"></div>
     </section>
@@ -71,6 +73,7 @@
         <div class="seg" id="tk-tabs" role="group" aria-label="Период">
           <button data-p="up" aria-pressed="true">Предстоящие</button>
           <button data-p="past" aria-pressed="false">Прошедшие</button>
+          <button data-p="files" aria-pressed="false">Скачанные файлы</button>
         </div>
         <label class="tk-only"><input type="checkbox" id="tk-open"> Только невыполненные</label>
         <div class="gr-sum" id="tk-sum" aria-live="polite"></div>
@@ -92,6 +95,7 @@
           <button data-p="3" aria-pressed="false">3 четверть</button>
           <button data-p="4" aria-pressed="false">4 четверть</button>
           <button data-p="year" aria-pressed="false">Итог за год</button>
+          <button data-p="charts" aria-pressed="false">Графики</button>
         </div>
         <div class="gr-sum" id="gr-sum" aria-live="polite"></div>
       </div>
@@ -107,6 +111,7 @@
         <button data-sec="account">Аккаунт</button>
         <button data-sec="dev" id="dev-nav" hidden>Для разработчика</button>
         <button data-sec="ai" id="ai-nav" hidden>Диагностика для ИИ</button>
+        <button data-sec="updates">Обновления</button>
         <button data-sec="about">О приложении</button>
       </nav>
       <section class="box main setbody">
@@ -248,8 +253,15 @@
             </div>
             <div class="hint muted">В тихие часы уведомления не всплывают, но проверка идёт, а новое видно в колокольчике. Сообщение о конце сессии ночью тоже не придёт: приложение скажет о нём, когда его откроют. Если «с» и «до» совпадают, тихих часов нет.</div>
           </div>
+          <div class="block"><h3>Вечерняя сводка</h3>
+            <label class="tg"><span>Сводка на следующий учебный день</span><input type="checkbox" role="switch" id="nt-evening"></label>
+            <label class="tg"><span>Напоминать о контрольных накануне</span><input type="checkbox" role="switch" id="nt-tests"></label>
+            <div class="bg-own quiet-times"><label>в <input type="time" id="nt-evening-at" value="19:00"></label></div>
+            <div class="hint muted">Одно уведомление в день: сколько уроков и с какого времени, сколько заданий не отмечено сделанными, какие контрольные. Контрольные узнаются по теме урока и тексту задания («контрольная», «к/р», «тест», «диктант»…), поэтому приложение может что-то пропустить. В тихие часы не приходит.</div>
+          </div>
           <div class="block"><h3>Окно</h3>
             <label class="tg"><span>Сворачивать в трей при закрытии</span><input type="checkbox" role="switch" id="nt-tray"></label>
+            <label class="tg"><span>Показывать текущий урок в заголовке окна и в трее</span><input type="checkbox" role="switch" id="nt-now"></label>
             <div class="hint warn" id="nt-tray-warn" hidden>Значок в трее не создан (на этом рабочем столе его нет или он недоступен). Пока так, закрытие окна будет закрывать приложение, а не прятать его.</div>
             <div class="hint muted">Тогда закрытое окно не останавливает проверку. Вернуть окно: значок в трее. В трее приложение завершается пунктом «Выход». Не на всех рабочих столах есть трей (в GNOME нужно расширение).</div>
           </div>
@@ -312,6 +324,19 @@
             <pre class="ai-out" id="ai-out"></pre>
           </div>
         </div>
+        <div data-pane="updates" hidden>
+          <h1>Обновления</h1>
+          <div class="sub" id="up-sub">Новые версии приложения</div>
+          <div class="block"><h3>Автообновление</h3>
+            <label class="tg"><span>Проверять обновления и предлагать установить</span><input type="checkbox" role="switch" id="up-auto"></label>
+            <div class="up-off" id="up-off" hidden>
+              <label class="up-accept"><input type="checkbox" id="up-accept"> <span>Я понимаю, что без обновлений останусь без исправлений ошибок и защиты, и разработчик не несёт ответственности, если у меня что-то сломается.</span></label>
+              <div class="devacts"><button class="btn ghost danger" id="up-off-yes" disabled>Отключить автообновление</button><button class="btn ghost" id="up-off-no">Отмена</button></div>
+            </div>
+            <div class="hint muted" id="up-how">Проверка при запуске и каждые 6 часов. Без вашего нажатия ничего не устанавливается.</div>
+          </div>
+          <div class="block"><button class="btn ghost" id="up-check">Проверить сейчас</button> <button class="linkbtn" id="up-page">Страница релизов</button><div class="hint muted" id="up-msg" aria-live="polite"></div></div>
+        </div>
         <div data-pane="about" hidden>
           <h1>О приложении</h1>
           <div class="sub">Версия и источник данных</div>
@@ -336,6 +361,22 @@
 <dialog id="lessondlg" class="dlg">
   <div class="dlg-bar"><button class="dlg-close" id="lessondlg-close" aria-label="Закрыть">×</button></div>
   <div class="main dlg-body" id="lessondlg-body"></div>
+</dialog>
+<dialog id="searchdlg" class="dlg searchdlg" aria-label="Поиск">
+  <div class="s-head"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input type="search" id="search-q" placeholder="Например: контрольная, параграф 5, Петров, презентация" aria-label="Что искать" autocomplete="off" spellcheck="false"><button class="dlg-close" id="search-close" aria-label="Закрыть">×</button></div>
+  <div class="muted s-load" id="search-load" hidden></div>
+  <div class="s-res" id="search-res"></div>
+</dialog>
+<dialog id="updlg" class="dlg" aria-labelledby="updlg-title">
+  <div class="dlg-bar"><button class="dlg-close" id="updlg-close" aria-label="Не сейчас">×</button></div>
+  <div class="main dlg-body">
+    <h1 id="updlg-title"></h1>
+    <div class="sub" id="updlg-sub"></div>
+    <div class="up-notes" id="updlg-notes"></div>
+    <div class="up-prog" id="updlg-prog" hidden><div class="meter"><i id="updlg-bar"></i></div><span class="muted" id="updlg-pct"></span></div>
+    <div class="hint muted" id="updlg-msg" aria-live="polite"></div>
+    <div class="devbtns"><button class="btn" id="updlg-go"></button><button class="btn ghost" id="updlg-later">Не сейчас</button></div>
+  </div>
 </dialog>
 <div class="feed" id="feed" role="dialog" aria-label="Что нового" hidden>
   <div class="fh"><b>Что нового</b><button id="feed-readall" class="linkbtn">Прочитать всё</button></div>
@@ -362,6 +403,13 @@
 <script src="js/account.js"></script>
 <script src="js/offline.js"></script>
 <script src="js/attachments.js"></script>
+<script src="js/updates.js"></script>
+<script src="js/planner.js"></script>
+<script src="js/notes.js"></script>
+<script src="js/icsexport.js"></script>
+<script src="js/search.js"></script>
+<script src="js/nowlesson.js"></script>
+<script src="js/charts.js"></script>
 <script src="js/dev.js"></script>
 <script src="js/aidebug.js"></script>
 <script src="js/main.js"></script>

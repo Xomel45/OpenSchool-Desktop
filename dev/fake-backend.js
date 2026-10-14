@@ -18,9 +18,9 @@
       (PLAN[wd] || []).forEach((sub, i) => {
         const id = `L-${k}-${i}`, past = d < new Date(new Date().setHours(0, 0, 0, 0)), h = hash(id);
         lessons.push({ id, subject_id: subjId(sub), subject_name: sub, teacher: { first_name: 'ИВАН', last_name: 'ПЕТРОВ', patronymic: 'СЕРГЕЕВИЧ' },
-          start: `${k} ${BELLS[i][0]}:00`, end: `${k} ${BELLS[i][1]}:00`, room: h % 3 ? String(100 + h % 200) : '', theme: h % 2 ? 'Тема урока: ' + sub : null,
+          start: `${k} ${BELLS[i][0]}:00`, end: `${k} ${BELLS[i][1]}:00`, room: h % 3 ? String(100 + h % 200) : '', theme: h % 13 === 0 ? 'Контрольная работа' : h % 17 === 0 ? 'Словарный диктант' : h % 2 ? 'Тема урока: ' + sub : null,
           absence: h % 29 === 0 ? { code: 'notallowded', description: 'Без уважительной причины' } : null });
-        if (h % 10 < 7) homeworks.push({ id: 'H-' + id, subject_id: subjId(sub), subject_name: sub, description: ['§5, ответить на вопросы', 'Упражнения 12–15', '№40, №42, №45'][h % 3], issue_date: k, due_date: k, due_lesson_id: id, materials: h % 7 === 0 ? [{ name: 'файл.docx', link: 'https://example.test/f' }] : [] });
+        if (h % 10 < 7) homeworks.push({ id: 'H-' + id, subject_id: subjId(sub), subject_name: sub, description: ['§5, ответить на вопросы', 'Упражнения 12–15', '№40, №42, №45'][h % 3], issue_date: k, due_date: k, due_lesson_id: id, materials: h % 7 === 0 ? [{ name: 'Задание к параграфу.docx', link: 'https://example.test/f' + id }, { name: 'схема.pdf', link: 'https://example.test/p' + id }] : h % 9 === 0 ? [{ name: 'ответы.zip', link: 'https://example.test/z' + id }] : [] });
         if (past && h % 10 < 4 && sub !== 'Физкультура') marks.push({ id: 'M-' + id, subject_id: subjId(sub), subject_name: sub, value: h % 13 === 0 ? 'н' : MARKS[h % 6], value2: h % 17 === 0 ? '3' : null, date: k, work_type_code: 'Ordinary', work_type: h % 5 === 0 ? 'Контрольная работа' : 'Обычная отметка', work_name: null, comment: null, lesson_id: id });
       });
     }
@@ -55,7 +55,26 @@
     if (cmd === 'ai_clean') return a.text;
     if (cmd === 'ai_save') { window.__aiSaved = a.text; return '~/ai-debug.txt'; }
     if (cmd === 'ai_facts') return { version: '0.1.0', tauri: '2.x', build: 'debug', os: 'linux', arch: 'x86_64', desktop: 'KDE', session_type: 'wayland', webview: '2.52', language: 'ru_RU', tray: true, dev_flag: false, uptime_s: 42, net: { mode: 'auto', direct: false, reachable: true, country: 'RU' }, notify: { marks: true, homework: true, absences: false, interval_min: 15, detail: true, close_to_tray: false, quiet: false, quiet_from: 1320, quiet_to: 420 }, secret_store: { available: true, has_session: true }, cache_minutes: [3, 70], events: [{ seconds_ago: 5, what: 'week', outcome: 'ok', ms: 120 }] };
-    if (cmd === 'download_material') { (window.__downloads = window.__downloads || []).push(a); if (/dl=err/.test(location.hash)) throw 'HTTP 403'; return { path: '~/Загрузки/OpenSchool/' + a.name, opened: !/dl=save/.test(location.hash) }; }
+    if (cmd === 'download_material') {
+      (window.__downloads = window.__downloads || []).push(a); if (/dl=err/.test(location.hash)) throw 'HTTP 403';
+      const openable = /\.(pdf|docx?|png|jpe?g|txt)$/i.test(a.name), at = Math.floor(Date.now() / 1000);
+      const f = { id: 'D' + (window.__dlist = window.__dlist || []).length + '-' + at, link: a.link, name: a.name, shown: '~/Загрузки/OpenSchool/' + a.name, size: 1000 + a.name.length * 37000, at, subject: a.subject, due: a.due, hw: a.hw, openable };
+      window.__dlist.unshift(f);
+      return { file: f, opened: !!a.open && openable && !/dl=save/.test(location.hash) };
+    }
+    if (cmd === 'export_ics') { window.__ics = a; return /ics=cancel/.test(location.hash) ? null : '~/' + a.name; }
+    if (cmd === 'set_now') { window.__now = a.text; return null; }
+    if (cmd === 'planner_done') { window.__doneSynced = a.ids; window.__lastNotes = a.notes; return null; }
+    if (cmd === 'update_info') return { auto: window.__upAuto !== false, configured: !/up=none/.test(location.hash), current: '0.1.0', kind: /up=pkg/.test(location.hash) ? 'other' : 'appimage', can_install: !/up=pkg/.test(location.hash), page: 'https://example.test/releases' };
+    if (cmd === 'set_update_auto') { if (!a.auto && !a.accepted) throw 'Чтобы отключить автообновление, отметьте, что понимаете риск.'; window.__upAuto = a.auto; return null; }
+    if (cmd === 'check_update') return /up=latest/.test(location.hash) ? null : { version: '0.2.0', current: '0.1.0', notes: '• Список файлов у задания\n• Автообновление', date: '2026-10-20', can_install: !/up=pkg/.test(location.hash) };
+    if (cmd === 'dismiss_update') { (window.__dismissed = window.__dismissed || []).push(a.version); return null; }
+    if (cmd === 'install_update') { window.__installed = true; for (const d of [30, 70, 100]) { await new Promise((r) => setTimeout(r, 100)); window.__fakeEmit && window.__fakeEmit('update-progress', { done: d * 1000, total: 100000 }); } if (/up=fail/.test(location.hash)) throw 'Не удалось установить обновление: signature'; return null; }
+    if (cmd === 'open_release_page') { window.__pageOpened = true; return null; }
+    if (cmd === 'list_downloads') return (window.__dlist || []).slice();
+    if (cmd === 'open_download' || cmd === 'reveal_download') { (window.__opened = window.__opened || []).push([cmd, a.id]); if (!(window.__dlist || []).some((d) => d.id === a.id)) throw 'Файла больше нет: его удалили или переместили.'; return cmd === 'open_download' ? window.__dlist.find((d) => d.id === a.id).openable : null; }
+    if (cmd === 'delete_download') { window.__dlist = (window.__dlist || []).filter((d) => d.id !== a.id); return null; }
+    if (cmd === 'open_downloads_folder') { window.__folderOpened = true; return null; }
     if (cmd === 'get_app_icon') return window.__savedIcon || null;
     if (cmd === 'set_app_icon') { (window.__icons = window.__icons || []).push(a.id); return null; }
     if (cmd === 'dev_mode') return /dev=1/.test(location.hash);
