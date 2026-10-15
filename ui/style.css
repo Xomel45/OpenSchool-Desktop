@@ -218,6 +218,7 @@ h2{font-size:13px;margin:0;padding:12px 16px 8px;color:var(--muted);font-weight:
 .wk{position:relative}
 .cal{position:fixed;z-index:30;top:0;left:0;width:304px;padding:12px;background-color:var(--bg);background-image:linear-gradient(var(--panel),var(--panel));border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 14px 40px rgba(0,0,0,.28)}
 .wk .dn #wcal{order:4;margin-left:6px}
+.wk .dn #wics{order:5;margin-left:auto}
 .cal-head{display:flex;align-items:center;gap:6px;margin-bottom:8px}
 .cal-head b{flex:1;text-align:center}
 .cal-head button{border:1px solid var(--line);background:var(--soft);width:30px;height:30px;border-radius:calc(var(--radius) - 6px);cursor:pointer;color:var(--ink);font-size:15px;line-height:1}
@@ -504,3 +505,23 @@ h2{font-size:13px;margin:0;padding:12px 16px 8px;color:var(--muted);font-weight:
 .miss .muted{font-size:12px}
 
 .gr-need{display:block;font-size:10.5px;color:var(--muted);margin-top:3px;white-space:nowrap}
+
+/* motion (see ui/js/motion.js): only transform and opacity move; nothing moves with «reduce motion» */
+.ch-bar{transform-box:fill-box;transform-origin:50% 100%}
+@media (prefers-reduced-motion:no-preference){
+  .dlg[open]{animation:dlgin .24s cubic-bezier(.2,.7,.2,1)}
+  .dlg[open]::backdrop{animation:fadein .24s ease}
+  @keyframes dlgin{from{opacity:0;transform:translateY(10px) scale(.97)}}
+  @keyframes fadein{from{opacity:0}}
+  .feed:not([hidden]),.cal:not([hidden]){animation:popin .2s cubic-bezier(.2,.7,.2,1)}
+  @keyframes popin{from{opacity:0;transform:translateY(-6px) scale(.98)}}
+  .hw span,.hw.note>span{transition:color .25s ease}
+  .ls,.up-test,.miss,.file,.s-item{transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease}
+  .ls:hover,.up-test:hover,.miss:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,0,0,.12)}
+  .mk .chip,.marks .chip{transition:transform .15s ease}
+  .mk:hover .chip{transform:scale(1.1)}
+  .btn,.fbtn,.att-more,.tk-copy,.today,.dn button{transition:background-color .15s,border-color .15s,color .15s,transform .1s}
+  .btn:active,.fbtn:active,.dn button:active,.today:active{transform:scale(.96)}
+  body,.box,.bar,.ls,.hw{transition-property:background-color,color,border-color;transition-duration:.35s}
+  .ls{transition-property:background-color,color,border-color,box-shadow,transform}
+}

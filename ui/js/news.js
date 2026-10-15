@@ -4,6 +4,7 @@ const tauriEvent = window.__TAURI__ && window.__TAURI__.event;
 S.feed = []; S.notify = null; S.newsReady = false;
 
 function renderBell(unread) {
+  if (typeof bellPop === 'function') bellPop(unread);
   const n = $('bell-n');
   n.hidden = !unread;
   n.textContent = unread > 99 ? '99+' : String(unread);

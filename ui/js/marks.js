@@ -98,7 +98,8 @@ function renderSummary(range) {
   if (!marks.length) { $('gr-sum').textContent = ''; return; }
   const count = (g) => nums.filter((n) => Math.round(n) === g).length;
   const dist = [5, 4, 3, 2].map((g) => `<span><span class="chip ${cls(String(g))}">${g}</span>×${count(g)}</span>`).join('');
-  $('gr-sum').innerHTML = `<span title="Среднее всех оценок периода, а не среднее по предметам">Средний балл <b>${nums.length ? fmtAvg(meanOf(nums)) : '–'}</b></span><span>Оценок <b>${marks.length}</b></span>${dist}`;
+  $('gr-sum').innerHTML = `<span title="Среднее всех оценок периода, а не среднее по предметам">Средний балл <b id="gr-avg-n">${nums.length ? fmtAvg(meanOf(nums)) : '–'}</b></span><span>Оценок <b>${marks.length}</b></span>${dist}`;
+  if (nums.length) countUp($('gr-avg-n'), meanOf(nums), 2);
 }
 
 async function showMarks(p) {
@@ -128,6 +129,7 @@ async function showMarks(p) {
 }
 
 function settingsSection(name) {
+  setTimeout(() => { const pane = document.querySelector(`[data-pane="${name}"]`); if (pane && !pane.hidden) staggerIn(pane, '.block'); }, 0);
   document.querySelectorAll('[data-pane]').forEach((p) => { p.hidden = p.dataset.pane !== name; });
   document.querySelectorAll('.setnav button').forEach((b) => b.setAttribute('aria-current', String(b.dataset.sec === name)));
 }

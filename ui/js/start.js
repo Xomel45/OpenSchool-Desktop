@@ -98,6 +98,7 @@ function view(v) {
   const on = { home: $('nav-home'), schedule: $('nav-schedule'), tasks: $('nav-tasks'), marks: $('nav-marks'), settings: $('nav-settings') };
   for (const k of Object.keys(on)) { if (k === v) on[k].setAttribute('aria-current', 'page'); else on[k].removeAttribute('aria-current'); }
   movePill(false);
+  pageIn($({ home: 'homeview', schedule: 'schedule', tasks: 'tasksview', marks: 'marksview', settings: 'settings' }[v]));
   if (v === 'settings') renderSettings();
   if (v === 'marks') showMarks();
   if (v === 'tasks') showTasks();

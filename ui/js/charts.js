@@ -156,7 +156,7 @@ function chartsHtml(subjects) {
   </div>`;
 }
 
-function renderCharts() {
+function renderCharts(animate = true) {
   const range = periodRange('year');
   if (!range) { $('gr-body').innerHTML = '<div class="gr-note">Нет данных о четвертях этого года.</div>'; return; }
   const marks = [...S.marks.values()].filter((m) => m.date >= range.start && m.date <= range.end).sort((a, b) => a.date.localeCompare(b.date) || String(a.id).localeCompare(String(b.id)));
@@ -171,6 +171,7 @@ function renderCharts() {
   const today = isoDate(S.today);
   const months = absencesByMonth(range.start, range.end < today ? range.end : today);
   drawAbsences($('ch-abs'), months);
+  if (animate) { chartIn($('ch-avg').querySelector('svg')); chartIn($('ch-abs').querySelector('svg')); }
   const total = months.reduce((a, m) => a + m.n, 0);
   $('ch-abs-note').textContent = total ? `Всего пропусков за год: ${total}.` : 'Пропусков нет.';
   $('ch-abs-table').innerHTML = `<table class="gr-table"><thead><tr><th>Месяц</th><th>Пропусков</th></tr></thead><tbody>${months.map((m) => `<tr><td>${esc(MON_SHORT[m.m])} ${m.y}</td><td>${m.n}</td></tr>`).join('')}</tbody></table>`;
@@ -180,4 +181,4 @@ function renderCharts() {
 }
 
 let chartsResize = 0;
-window.addEventListener('resize', () => { clearTimeout(chartsResize); chartsResize = setTimeout(() => { if (S.gp === 'charts' && !$('marksview').hidden && $('ch-avg')) renderCharts(); }, 150); });
+window.addEventListener('resize', () => { clearTimeout(chartsResize); chartsResize = setTimeout(() => { if (S.gp === 'charts' && !$('marksview').hidden && $('ch-avg')) renderCharts(false); }, 150); });
