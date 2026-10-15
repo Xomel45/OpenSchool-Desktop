@@ -19,7 +19,7 @@ function ago(ts) {
 }
 function feedChip(it) {
   if (it.kind === 'mark') return `<span class="chip ${cls(it.value || '')}">${esc(it.value || '')}</span>`;
-  return `<span class="chip cn small">${it.kind === 'homework' ? 'ДЗ' : 'Н'}</span>`;
+  return `<span class="chip cn small">${it.kind === 'homework' ? 'ДЗ' : it.kind === 'change' ? '⇄' : 'Н'}</span>`;
 }
 function renderFeed() {
   $('feed-list').innerHTML = S.feed.length
@@ -96,7 +96,7 @@ const hmToMin = (s) => { const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(s))
 function renderNotifySettings() {
   const s = S.notify;
   if (!s) return;
-  $('nt-marks').checked = s.marks; $('nt-homework').checked = s.homework; $('nt-absences').checked = s.absences; $('nt-tray').checked = s.close_to_tray;
+  $('nt-marks').checked = s.marks; $('nt-homework').checked = s.homework; $('nt-absences').checked = s.absences; $('nt-changes').checked = s.changes !== false; $('nt-tray').checked = s.close_to_tray;
   if (invoke) invoke('tray_ready').then((ok) => { $('nt-tray-warn').hidden = ok; }).catch(() => {});
   $('nt-quiet').checked = !!s.quiet;
   $('nt-quiet-from').value = minToHm(s.quiet_from ?? 1320); $('nt-quiet-to').value = minToHm(s.quiet_to ?? 420);
@@ -115,12 +115,24 @@ async function saveNotify(patch) {
 $('nt-marks').onchange = (e) => saveNotify({ marks: e.target.checked });
 $('nt-homework').onchange = (e) => saveNotify({ homework: e.target.checked });
 $('nt-absences').onchange = (e) => saveNotify({ absences: e.target.checked });
+$('nt-changes').onchange = (e) => saveNotify({ changes: e.target.checked });
 $('nt-quiet').onchange = (e) => saveNotify({ quiet: e.target.checked });
 $('nt-quiet-from').onchange = (e) => { const m = hmToMin(e.target.value); if (m === null) renderNotifySettings(); else saveNotify({ quiet_from: m }); };
 $('nt-quiet-to').onchange = (e) => { const m = hmToMin(e.target.value); if (m === null) renderNotifySettings(); else saveNotify({ quiet_to: m }); };
 $('nt-evening').onchange = (e) => saveNotify({ evening: e.target.checked });
 $('nt-tests').onchange = (e) => saveNotify({ test_reminders: e.target.checked });
 $('nt-evening-at').onchange = (e) => { const m = hmToMin(e.target.value); if (m === null) renderNotifySettings(); else saveNotify({ evening_at: m }); };
+// «Запускать при входе в систему»: kept by the system (autostart entry), not in the settings file.
+async function renderAutostart() { if (invoke) try { $('nt-autostart').checked = await invoke('autostart_get'); } catch (_) { /* unknown */ } }
+$('nt-autostart').onchange = async (e) => {
+  try {
+    const on = await invoke('autostart_set', { on: e.target.checked });
+    $('nt-autostart').checked = on;
+    // starting in the tray only makes sense when closing the window keeps the app running
+    if (on && S.notify && !S.notify.close_to_tray) { await saveNotify({ close_to_tray: true }); $('nt-msg').textContent = 'Автозапуск включён. Заодно включено «Сворачивать в трей при закрытии», иначе приложение не сможет работать в фоне.'; }
+  } catch (err) { $('nt-msg').textContent = String(err); renderAutostart(); }
+};
+renderAutostart();
 $('nt-tray').onchange = (e) => saveNotify({ close_to_tray: e.target.checked });
 $('nt-interval').addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (b) saveNotify({ interval_min: Number(b.dataset.v) }); });
 $('nt-detail').addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (b) saveNotify({ detail: b.dataset.v === '1' }); });

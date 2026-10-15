@@ -5,6 +5,7 @@ mod appicon;
 mod attach;
 mod background;
 mod cache;
+mod changes;
 mod commands;
 mod config_file;
 mod diag;
@@ -78,6 +79,8 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        // «Запускать при входе в систему»: the system starts the app with --autostart; it then stays in the tray.
+        .plugin(tauri_plugin_autostart::Builder::new().arg(tray::AUTOSTART_ARG).app_name("OpenSchool").build())
         .manage(AppState::new())
         .manage(update::Updates::default())
         .manage(planner::Planner::default())
@@ -91,6 +94,9 @@ fn main() {
             }
             appicon::restore(app.handle());
             update::init(app.handle());
+            // The window is created hidden (tauri.conf.json): shown now, unless the system started the app at login and a tray
+            // icon exists to bring it back from.
+            tray::first_show(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -129,6 +135,8 @@ fn main() {
             planner::planner_done,
             ics::export_ics,
             tray::set_now,
+            tray::autostart_get,
+            tray::autostart_set,
             update::update_info,
             update::set_update_auto,
             update::check_update,

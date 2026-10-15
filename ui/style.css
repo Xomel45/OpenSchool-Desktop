@@ -492,3 +492,15 @@ h2{font-size:13px;margin:0;padding:12px 16px 8px;color:var(--muted);font-weight:
 .ch-note{font-size:12px;margin-top:4px}
 .ch-table summary{cursor:pointer;font-size:12px;color:var(--muted);margin-top:6px}
 .ch-table .gr-table{margin-top:8px;font-size:12px}
+
+/* copy the day's homework */
+.tk-copy{margin-left:auto;border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:999px;padding:2px 9px;font-size:11px;cursor:pointer;font-weight:500}
+.tk-copy:hover{color:var(--ink);border-color:var(--accent)}
+.tk-day h3 small{margin-left:6px}
+
+.miss-list{display:flex;flex-direction:column;gap:6px}
+.miss{display:flex;flex-direction:column;gap:2px;text-align:left;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:calc(var(--radius) - 6px);padding:8px 10px;font:inherit;font-size:13px;cursor:pointer}
+.miss:hover{border-color:var(--accent)}
+.miss .muted{font-size:12px}
+
+.gr-need{display:block;font-size:10.5px;color:var(--muted);margin-top:3px;white-space:nowrap}

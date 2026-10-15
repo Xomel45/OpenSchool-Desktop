@@ -33,6 +33,7 @@
   const nowS = Math.floor(Date.now() / 1000);
   let feed = /news=1/.test(location.hash) ? [
     { id: 'm:1', kind: 'mark', title: 'Алгебра', text: 'Контрольная работа · 8 октября', value: '5', date: '2026-10-08', ts: nowS - 600, read: false },
+    { id: 'c:1', kind: 'change', title: 'История', text: 'Замена: Физика → История, 16 октября, 9:25', value: null, date: '2026-10-16', ts: nowS - 600, read: false },
     { id: 'h:2', kind: 'homework', title: 'Литература', text: 'Прочитать главу 5, пересказ · на 9 октября', value: null, date: '2026-10-09', ts: nowS - 3 * 3600, read: false },
     { id: 'm:3', kind: 'mark', title: 'История', text: 'Устный ответ · 7 октября', value: '3', date: '2026-10-07', ts: nowS - 30 * 3600, read: true }] : [];
   let notify = { marks: true, homework: true, absences: false, interval_min: 15, detail: true, close_to_tray: false, quiet: false, quiet_from: 1320, quiet_to: 420 };
@@ -63,6 +64,8 @@
       return { file: f, opened: !!a.open && openable && !/dl=save/.test(location.hash) };
     }
     if (cmd === 'export_ics') { window.__ics = a; return /ics=cancel/.test(location.hash) ? null : '~/' + a.name; }
+    if (cmd === 'autostart_get') return !!window.__autostart;
+    if (cmd === 'autostart_set') { window.__autostart = a.on; return a.on; }
     if (cmd === 'set_now') { window.__now = a.text; return null; }
     if (cmd === 'planner_done') { window.__doneSynced = a.ids; window.__lastNotes = a.notes; return null; }
     if (cmd === 'update_info') return { auto: window.__upAuto !== false, configured: !/up=none/.test(location.hash), current: '0.1.0', kind: /up=pkg/.test(location.hash) ? 'other' : 'appimage', can_install: !/up=pkg/.test(location.hash), page: 'https://example.test/releases' };

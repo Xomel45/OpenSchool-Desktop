@@ -21,7 +21,7 @@ function cfgParse(c) {
   const n = c.notifications;
   if (n && typeof n === 'object') {
     const o = {};
-    for (const k of ['marks', 'homework', 'absences', 'detail']) if (typeof n[k] === 'boolean') o[k] = n[k];
+    for (const k of ['marks', 'homework', 'absences', 'detail', 'changes']) if (typeof n[k] === 'boolean') o[k] = n[k];
     if (CFG_INTERVALS.includes(n.interval_min)) o.interval_min = n.interval_min;
     const q = n.quiet;
     if (q && typeof q === 'object') {
@@ -29,6 +29,13 @@ function cfgParse(c) {
       const from = hmToMin(q.from), to = hmToMin(q.to);
       if (from !== null) o.quiet_from = from;
       if (to !== null) o.quiet_to = to;
+    }
+    const ev = n.evening;
+    if (ev && typeof ev === 'object') {
+      if (typeof ev.on === 'boolean') o.evening = ev.on;
+      const at = hmToMin(ev.at);
+      if (at !== null) o.evening_at = at;
+      if (typeof ev.tests === 'boolean') o.test_reminders = ev.tests;
     }
     if (Object.keys(o).length) out.notifications = o;
   }
@@ -39,7 +46,8 @@ function cfgParse(c) {
 /** The config.json of this device's current choices. */
 async function cfgBuild() {
   const o = { format: 'openschool-config', version: 1, style, scheme: schemePref, accent: accentPref, zoom: zoomPref, icon: iconPref, bg: bgPref };
-  if (S.notify) o.notifications = { marks: S.notify.marks, homework: S.notify.homework, absences: S.notify.absences, interval_min: S.notify.interval_min, detail: S.notify.detail, quiet: { on: !!S.notify.quiet, from: minToHm(S.notify.quiet_from ?? 1320), to: minToHm(S.notify.quiet_to ?? 420) } };
+  if (S.notify) o.notifications = { marks: S.notify.marks, homework: S.notify.homework, absences: S.notify.absences, interval_min: S.notify.interval_min, detail: S.notify.detail, quiet: { on: !!S.notify.quiet, from: minToHm(S.notify.quiet_from ?? 1320), to: minToHm(S.notify.quiet_to ?? 420) },
+    changes: S.notify.changes !== false, evening: { on: S.notify.evening !== false, at: minToHm(S.notify.evening_at ?? 1140), tests: S.notify.test_reminders !== false } };
   try { const n = await invoke('net_get'); if (n && CFG_NET_MODES.includes(n.mode)) o.network = { mode: n.mode }; } catch (_) { /* the mode is just left out */ }
   return o;
 }

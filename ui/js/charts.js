@@ -125,6 +125,24 @@ function drawAbsences(box, months) {
   box.append(svg, tip);
 }
 
+/** «Что я пропустил»: every absent lesson of the range, newest first, with its topic and the homework given that day for it. */
+function missedLessons(start, end) {
+  const out = [];
+  for (const l of S.lessonsById.values()) {
+    const date = l.start.slice(0, 10);
+    if (!l.absence || date < start || date > end) continue;
+    const hw = [...S.hw.values()].filter((h) => h.issue_date === date && (h.subject_id ? h.subject_id === l.subject_id : h.subject_name === l.subject_name));
+    out.push({ l, date, hw });
+  }
+  return out.sort((a, b) => b.l.start.localeCompare(a.l.start));
+}
+
+function missedHtml(list) {
+  if (!list.length) return '<span class="muted">Пропусков нет.</span>';
+  return list.map(({ l, date, hw }) => `<button class="miss" data-date="${esc(date)}" data-lid="${esc(l.id)}"><b>${esc(l.subject_name)}</b><span class="muted">${esc(shortDate(date))}, ${esc(hm(l.start))}${l.absence.description ? ` · ${esc(l.absence.description)}` : ''}</span>
+    <span>Тема: ${l.theme ? esc(l.theme) : '<span class="muted">не указана</span>'}</span>${hw.map((h) => `<span>Задали: ${esc(h.description || 'без текста')} <span class="muted">(на ${esc(shortDate(h.due_date))})</span></span>`).join('')}</button>`).join('');
+}
+
 function chartsHtml(subjects) {
   const opts = [['', 'Все предметы'], ...subjects.map((s) => [s, s])].map(([v, t]) => `<option value="${esc(v)}"${v === S.chartSubject ? ' selected' : ''}>${esc(t)}</option>`).join('');
   return `<div class="ch">
@@ -134,6 +152,7 @@ function chartsHtml(subjects) {
     <div class="ch-card"><div class="ch-head"><h3>Пропуски по месяцам</h3></div>
       <div class="ch-plot" id="ch-abs"></div><div class="ch-note muted" id="ch-abs-note"></div>
       <details class="ch-table"><summary>Таблица</summary><div id="ch-abs-table"></div></details></div>
+    <div class="ch-card"><div class="ch-head"><h3>Что я пропустил</h3></div><div class="miss-list" id="ch-missed"></div></div>
   </div>`;
 }
 
@@ -155,6 +174,8 @@ function renderCharts() {
   const total = months.reduce((a, m) => a + m.n, 0);
   $('ch-abs-note').textContent = total ? `Всего пропусков за год: ${total}.` : 'Пропусков нет.';
   $('ch-abs-table').innerHTML = `<table class="gr-table"><thead><tr><th>Месяц</th><th>Пропусков</th></tr></thead><tbody>${months.map((m) => `<tr><td>${esc(MON_SHORT[m.m])} ${m.y}</td><td>${m.n}</td></tr>`).join('')}</tbody></table>`;
+  $('ch-missed').innerHTML = missedHtml(missedLessons(range.start, range.end < today ? range.end : today));
+  $('ch-missed').onclick = (e) => { const b = e.target.closest('.miss'); if (b) showLessonDialog(b.dataset.date, b.dataset.lid, b); };
   $('ch-subject').onchange = (e) => { S.chartSubject = e.target.value; renderCharts(); };
 }
 

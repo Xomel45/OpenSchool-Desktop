@@ -232,6 +232,7 @@
             <label class="tg"><span>Новые оценки</span><input type="checkbox" role="switch" id="nt-marks"></label>
             <label class="tg"><span>Новые домашние задания</span><input type="checkbox" role="switch" id="nt-homework"></label>
             <label class="tg"><span>Отметки о пропусках</span><input type="checkbox" role="switch" id="nt-absences"></label>
+            <label class="tg"><span>Замены и изменения в расписании</span><input type="checkbox" role="switch" id="nt-changes"></label>
           </div>
           <div class="block"><h3>Как часто проверять</h3>
             <div class="seg" id="nt-interval" role="group" aria-label="Как часто проверять">
@@ -262,6 +263,7 @@
           <div class="block"><h3>Окно</h3>
             <label class="tg"><span>Сворачивать в трей при закрытии</span><input type="checkbox" role="switch" id="nt-tray"></label>
             <label class="tg"><span>Показывать текущий урок в заголовке окна и в трее</span><input type="checkbox" role="switch" id="nt-now"></label>
+            <label class="tg"><span>Запускать при входе в систему (свёрнутым в трей)</span><input type="checkbox" role="switch" id="nt-autostart"></label>
             <div class="hint warn" id="nt-tray-warn" hidden>Значок в трее не создан (на этом рабочем столе его нет или он недоступен). Пока так, закрытие окна будет закрывать приложение, а не прятать его.</div>
             <div class="hint muted">Тогда закрытое окно не останавливает проверку. Вернуть окно: значок в трее. В трее приложение завершается пунктом «Выход». Не на всех рабочих столах есть трей (в GNOME нужно расширение).</div>
           </div>
@@ -410,6 +412,7 @@
 <script src="js/search.js"></script>
 <script src="js/nowlesson.js"></script>
 <script src="js/charts.js"></script>
+<script src="js/share.js"></script>
 <script src="js/dev.js"></script>
 <script src="js/aidebug.js"></script>
 <script src="js/main.js"></script>

@@ -75,6 +75,32 @@ pub fn set_now(app: AppHandle, text: String) {
     }
 }
 
+/// The argument the autostart entry starts the app with.
+pub const AUTOSTART_ARG: &str = "--autostart";
+
+/// Started at login: stay in the tray (when there is one); otherwise show the window.
+pub fn first_show(app: &AppHandle) {
+    let at_login = std::env::args().any(|a| a == AUTOSTART_ARG);
+    if at_login && app.tray_by_id("main").is_some() {
+        return;
+    }
+    show_main(app);
+}
+
+#[tauri::command]
+pub fn autostart_get(app: AppHandle) -> bool {
+    use tauri_plugin_autostart::ManagerExt;
+    app.autolaunch().is_enabled().unwrap_or(false)
+}
+
+#[tauri::command]
+pub fn autostart_set(app: AppHandle, on: bool) -> Result<bool, String> {
+    use tauri_plugin_autostart::ManagerExt;
+    let m = app.autolaunch();
+    if on { m.enable() } else { m.disable() }.map_err(|e| format!("Не удалось изменить автозапуск: {e}"))?;
+    Ok(m.is_enabled().unwrap_or(on))
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

@@ -7,6 +7,18 @@ const fmtAvg = (x) => String(Math.round(x * 100) / 100).replace('.', ',');
 const avgClass = (x) => (x >= 4.5 ? 'c5' : x >= 3.5 ? 'c4' : x >= 2.6 ? 'c3' : 'c2');
 const quartersOf = () => (S.cls ? S.cls.quarters : []);
 
+/** How many fives lift the average of `nums` to the next band (2,6 → «3», 3,5 → «4», 4,5 → «5»): { grade, fives } or null when
+ *  there is nothing to count or the average is already a five. */
+function nextBand(nums) {
+  if (!nums.length) return null;
+  const sum = nums.reduce((a, b) => a + b, 0), n = nums.length, avg = sum / n;
+  const band = [[2.6, 3], [3.5, 4], [4.5, 5]].find(([t]) => avg < t);
+  if (!band) return null;
+  const [t, grade] = band;
+  return { grade, fives: Math.max(1, Math.ceil((t * n - sum) / (5 - t) - 1e-9)) };
+}
+const fivesWord = (k) => (k % 10 === 1 && k % 100 !== 11 ? 'пятёрка' : k % 10 >= 2 && k % 10 <= 4 && (k % 100 < 12 || k % 100 > 14) ? 'пятёрки' : 'пятёрок');
+
 function periodRange(p) {
   const qs = quartersOf();
   if (!qs.length) return null;
@@ -56,7 +68,8 @@ const markChip = (m) => `<span class="chip ${cls(m.value)}" data-id="${esc(m.id)
 
 function renderQuarterTable(rows) {
   if (!rows.length) return '<div class="gr-note">В этой четверти пока нет уроков.</div>';
-  const body = rows.map((r) => `<tr><th scope="row">${esc(r.name)}</th><td>${r.marks.length ? `<div class="gr-marks">${r.marks.map(markChip).join('')}</div>` : '<span class="gr-dash">–</span>'}</td><td class="gr-avg">${avgChip(r.avg)}</td></tr>`).join('');
+  const hint = (r) => { const b = nextBand(r.marks.map((m) => toNum(m.value)).filter((n) => n !== null)); return b && b.fives <= 8 ? `<small class="gr-need" title="Сколько пятёрок подряд поднимут средний балл до ${b.grade}">до ${b.grade}: ${b.fives} ${fivesWord(b.fives)}</small>` : ''; };
+  const body = rows.map((r) => `<tr><th scope="row">${esc(r.name)}</th><td>${r.marks.length ? `<div class="gr-marks">${r.marks.map(markChip).join('')}</div>` : '<span class="gr-dash">–</span>'}</td><td class="gr-avg">${avgChip(r.avg)}${hint(r)}</td></tr>`).join('');
   return `<table class="gr-table gr-grid"><thead><tr><th>Предмет</th><th>Оценки</th><th class="gr-avg">Ср. балл</th></tr></thead><tbody>${body}</tbody></table>`;
 }
 

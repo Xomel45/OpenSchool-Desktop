@@ -170,7 +170,11 @@ pub fn evening_text(p: &DayPlan, today: NaiveDate, summary: bool, tests: bool) -
 pub struct Planner {
     done: Mutex<HashSet<String>>,
     notes: Mutex<Vec<Note>>,
+    /// The last failed try (offline): the next one waits [RETRY_AFTER], the loop ticks every 10 seconds.
+    failed_at: Mutex<Option<std::time::Instant>>,
 }
+
+const RETRY_AFTER: std::time::Duration = std::time::Duration::from_secs(10 * 60);
 
 /// The page tells which homeworks are ticked (at start and on every tick).
 #[tauri::command]
@@ -206,6 +210,10 @@ pub async fn tick(app: &AppHandle) {
         return;
     }
     let Some(student) = news.student() else { return }; // the background check finds it first
+    let planner = app.state::<Planner>();
+    if planner.failed_at.lock().ok().and_then(|f| *f).is_some_and(|t| t.elapsed() < RETRY_AFTER) {
+        return;
+    }
     let client = app.state::<crate::AppState>().client();
     let mut weeks = Vec::new();
     for shift in [0i64, 7] {
@@ -213,7 +221,10 @@ pub async fn tick(app: &AppHandle) {
         match client.week(student.clone(), w.year() as u32, w.week()).await {
             Ok(week) => weeks.push(week),
             Err(e) => {
-                eprintln!("evening: {e}"); // offline: tried again on the next tick
+                eprintln!("evening: {e}"); // offline: tried again in 10 minutes
+                if let Ok(mut f) = planner.failed_at.lock() {
+                    *f = Some(std::time::Instant::now());
+                }
                 return;
             }
         }

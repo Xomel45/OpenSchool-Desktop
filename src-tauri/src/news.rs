@@ -31,6 +31,8 @@ pub struct Settings {
     pub marks: bool,
     pub homework: bool,
     pub absences: bool,
+    /// «Замены»: a lesson of the coming days was replaced, cancelled, added, moved or got another room.
+    pub changes: bool,
     pub interval_min: u32,
     /// Show the subject and the mark in the notification, not just "new mark".
     pub detail: bool,
@@ -50,7 +52,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { marks: true, homework: true, absences: false, interval_min: 15, detail: true, close_to_tray: false, quiet: false, quiet_from: 22 * 60, quiet_to: 7 * 60, evening: true, evening_at: 19 * 60, test_reminders: true }
+        Self { marks: true, homework: true, absences: false, changes: true, interval_min: 15, detail: true, close_to_tray: false, quiet: false, quiet_from: 22 * 60, quiet_to: 7 * 60, evening: true, evening_at: 19 * 60, test_reminders: true }
     }
 }
 
@@ -85,6 +87,7 @@ impl Settings {
             Kind::Mark => self.marks,
             Kind::Homework => self.homework,
             Kind::Absence => self.absences,
+            Kind::Change => self.changes,
         }
     }
 }
@@ -96,6 +99,7 @@ pub enum Kind {
     Mark,
     Homework,
     Absence,
+    Change,
 }
 
 impl Kind {
@@ -104,6 +108,7 @@ impl Kind {
             Kind::Mark => "mark",
             Kind::Homework => "homework",
             Kind::Absence => "absence",
+            Kind::Change => "change",
         }
     }
 }
@@ -192,6 +197,7 @@ fn notification_text_raw(items: &[Event], detail: bool) -> (String, String) {
             Kind::Mark => ("Новая оценка", e.value.as_deref().map(|v| format!("{} — {v}", e.subject))),
             Kind::Homework => ("Новое задание", Some(e.subject.clone())),
             Kind::Absence => ("Отметка о пропуске", Some(e.subject.clone())),
+            Kind::Change => ("Изменение в расписании", Some(e.subject.clone())),
         };
         return match (detail, name) {
             (true, Some(n)) => (format!("{title}: {n}"), e.detail.clone()),
@@ -204,6 +210,7 @@ fn notification_text_raw(items: &[Event], detail: bool) -> (String, String) {
         (true, Some(Kind::Mark)) => format!("{n} {}", plural(n, "новая оценка", "новые оценки", "новых оценок")),
         (true, Some(Kind::Homework)) => format!("{n} {}", plural(n, "новое задание", "новых задания", "новых заданий")),
         (true, Some(Kind::Absence)) => format!("{n} {}", plural(n, "отметка о пропуске", "отметки о пропусках", "отметок о пропусках")),
+        (true, Some(Kind::Change)) => format!("{n} {}", plural(n, "изменение в расписании", "изменения в расписании", "изменений в расписании")),
         _ => format!("{n} {}", plural(n, "новое событие", "новых события", "новых событий")),
     };
     if !detail {
@@ -237,6 +244,8 @@ struct Data {
     initialized: bool,
     seen: HashSet<String>,
     feed: Vec<FeedItem>,
+    /// The lessons of today and the next 7 days at the last check («Замены» compares with it).
+    lessons: crate::changes::Snapshot,
 }
 
 pub struct News {
@@ -336,7 +345,8 @@ impl News {
     }
 
     /// Take in what a check found. Returns the items that are new and wanted (empty on the very first run).
-    fn absorb(&self, found: Vec<Event>, now: i64) -> Vec<Event> {
+    /// `lessons` (the coming days as fetched now, with today's date) adds the timetable changes since the last check.
+    fn absorb(&self, mut found: Vec<Event>, lessons: Option<(crate::changes::Snapshot, String)>, now: i64) -> Vec<Event> {
         let settings = self.settings();
         let mut data = match self.data.lock() {
             Ok(d) => d,
@@ -348,6 +358,17 @@ impl News {
             return Vec::new();
         }
         let first = !data.initialized;
+        let mut lessons_changed = false;
+        if let Some((snap, today)) = lessons {
+            if !first && !data.lessons.is_empty() {
+                found.extend(crate::changes::changes(&data.lessons, &snap, &today));
+            }
+            // An empty answer must not wipe what is known: the next real one would be compared with nothing.
+            if !snap.is_empty() && snap != data.lessons {
+                data.lessons = snap;
+                lessons_changed = true;
+            }
+        }
         let seen_len = data.seen.len();
         let mut new = Vec::new();
         let mut batch = HashSet::new();
@@ -367,7 +388,7 @@ impl News {
             data.feed.insert(0, FeedItem { id: e.key.clone(), kind: e.kind.as_str().into(), title: e.subject.clone(), text: e.detail.clone(), value: e.value.clone(), date: e.date.clone(), ts: now, read: false });
         }
         data.feed.truncate(FEED_LIMIT);
-        if first || !nothing_added(&data, seen_len) {
+        if first || lessons_changed || !nothing_added(&data, seen_len) {
             self.save_data(&data);
         }
         wanted
@@ -444,12 +465,15 @@ pub async fn check(app: &AppHandle) -> Result<usize, CheckError> {
         news.adopt_account(&student);
         let today = Local::now().date_naive();
         let mut found = Vec::new();
+        let mut weeks = Vec::new();
         for shift in [-7i64, 0, 7] {
             let w = (today + Days::days(shift)).iso_week();
             let week = client.week(student.clone(), w.year() as u32, w.week()).await?;
             found.extend(events(&week));
+            weeks.push(week);
         }
-        Ok::<_, CheckError>(news.absorb(found, unix_now()))
+        let snap = crate::changes::snapshot(&weeks, &today.to_string(), &(today + Days::days(7)).to_string());
+        Ok::<_, CheckError>(news.absorb(found, Some((snap, today.to_string())), unix_now()))
     }
     .await;
     let new = match result {
@@ -699,12 +723,12 @@ mod tests {
         let dir = temp("logout-race");
         let news = News::new(dir.clone());
         news.logged_in();
-        news.absorb(vec![], 1);
-        news.absorb(events(&week(vec![mark("1", "Алгебра", "5")], vec![], vec![])), 2);
+        news.absorb(vec![], None, 1);
+        news.absorb(events(&week(vec![mark("1", "Алгебра", "5")], vec![], vec![])), None, 2);
         assert!(dir.join("news.json").exists());
         news.reset(); // logout
         assert!(!dir.join("news.json").exists());
-        let late = news.absorb(events(&week(vec![mark("2", "История", "4")], vec![], vec![])), 3); // the check that was still running
+        let late = news.absorb(events(&week(vec![mark("2", "История", "4")], vec![], vec![])), None, 3); // the check that was still running
         assert!(late.is_empty());
         assert!(!dir.join("news.json").exists(), "the file of the logged-out account must stay deleted");
     }
@@ -713,25 +737,25 @@ mod tests {
     fn first_run_only_records_then_only_new_things_count() {
         let news = active(temp("flow"));
         let w1 = || events(&week(vec![mark("1", "Алгебра", "5")], vec![homework("2", "Физика", "x")], vec![lesson("3", true)]));
-        assert!(news.absorb(w1(), 100).is_empty(), "first run must stay silent");
+        assert!(news.absorb(w1(), None, 100).is_empty(), "first run must stay silent");
         assert_eq!(news.unread(), 0);
-        assert!(news.absorb(w1(), 200).is_empty(), "nothing new");
+        assert!(news.absorb(w1(), None, 200).is_empty(), "nothing new");
         let mut again = w1();
         again.extend(events(&week(vec![mark("5", "История", "4")], vec![homework("6", "Химия", "y")], vec![lesson("7", true)])));
-        let got = news.absorb(again, 300);
+        let got = news.absorb(again, None, 300);
         // absences are off by default: the mark and the homework are announced, the absence is only remembered
         assert_eq!(got.iter().map(|e| e.key.as_str()).collect::<Vec<_>>(), ["m:5", "h:6"]);
         assert_eq!(news.unread(), 2);
         news.settings.lock().unwrap().absences = true;
-        assert!(news.absorb(events(&week(vec![], vec![], vec![lesson("7", true)])), 400).is_empty(), "an old absence must not flood after switching it on");
+        assert!(news.absorb(events(&week(vec![], vec![], vec![lesson("7", true)])), None, 400).is_empty(), "an old absence must not flood after switching it on");
     }
 
     #[test]
     fn another_account_starts_from_scratch_and_the_same_one_keeps_its_state() {
         let news = active(temp("account"));
         news.adopt_account("A");
-        news.absorb(vec![], 1);
-        news.absorb(events(&week(vec![mark("1", "Алгебра", "5")], vec![], vec![])), 2);
+        news.absorb(vec![], None, 1);
+        news.absorb(events(&week(vec![mark("1", "Алгебра", "5")], vec![], vec![])), None, 2);
         assert_eq!(news.unread(), 1);
         news.adopt_account("A");
         assert_eq!(news.unread(), 1, "same account: nothing is lost");
@@ -769,31 +793,31 @@ mod tests {
     fn unchanged_checks_do_not_rewrite_the_file() {
         let dir = temp("nowrite");
         let news = active(dir.clone());
-        news.absorb(vec![], 1);
+        news.absorb(vec![], None, 1);
         let path = dir.join("news.json");
         assert!(path.exists());
         std::fs::remove_file(&path).unwrap();
-        news.absorb(vec![], 2); // nothing new
+        news.absorb(vec![], None, 2); // nothing new
         assert!(!path.exists(), "no new ids: no write");
-        news.absorb(events(&week(vec![mark("1", "Алгебра", "5")], vec![], vec![])), 3);
+        news.absorb(events(&week(vec![mark("1", "Алгебра", "5")], vec![], vec![])), None, 3);
         assert!(path.exists(), "a new id is saved");
     }
 
     #[test]
     fn duplicates_inside_one_batch_count_once() {
         let news = active(temp("dup"));
-        news.absorb(vec![], 1);
+        news.absorb(vec![], None, 1);
         let e = events(&week(vec![mark("1", "Алгебра", "5")], vec![], vec![]));
-        assert_eq!(news.absorb([e.clone(), e].concat(), 2).len(), 1);
+        assert_eq!(news.absorb([e.clone(), e].concat(), None, 2).len(), 1);
     }
 
     #[test]
     fn feed_is_capped_persisted_and_cleared_on_reset() {
         let dir = temp("feed");
         let news = active(dir.clone());
-        news.absorb(vec![], 1);
+        news.absorb(vec![], None, 1);
         let many: Vec<Event> = (0..80).flat_map(|i| events(&week(vec![mark(&i.to_string(), "Алгебра", "5")], vec![], vec![]))).collect();
-        news.absorb(many, 2);
+        news.absorb(many, None, 2);
         assert_eq!(news.data.lock().unwrap().feed.len(), FEED_LIMIT);
         let again = News::new(dir.clone()); // a restart keeps the feed and the seen ids
         assert_eq!(again.unread(), FEED_LIMIT);
@@ -812,5 +836,22 @@ mod tests {
         assert!(!s.homework && s.interval_min == 30 && s.marks);
         std::fs::write(dir.join("notify.json"), "{ not json").unwrap();
         assert_eq!(News::new(dir).settings(), Settings::default(), "junk on disk falls back to the defaults");
+    }
+
+    #[test]
+    fn timetable_changes_are_announced_once_and_only_after_the_first_snapshot() {
+        use crate::changes::{LessonSnap, Snapshot};
+        let snap = |subject: &str, id: &str| -> Snapshot { [("2026-10-15".to_string(), vec![LessonSnap { id: id.into(), subject: subject.into(), start: "09:25".into(), room: "5".into() }])].into() };
+        let news = active(temp("changes"));
+        assert!(news.absorb(vec![], Some((snap("Физика", "1"), "2026-10-15".into())), 1).is_empty(), "first run: only remembered");
+        assert!(news.absorb(vec![], Some((snap("Физика", "1"), "2026-10-15".into())), 2).is_empty(), "same timetable: nothing");
+        let got = news.absorb(vec![], Some((snap("История", "2"), "2026-10-15".into())), 3);
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].detail, "Замена: Физика → История, 15 октября, 9:25");
+        assert!(news.absorb(vec![], Some((Snapshot::new(), "2026-10-15".into())), 4).is_empty(), "an empty answer says nothing");
+        assert!(news.absorb(vec![], Some((snap("История", "2"), "2026-10-15".into())), 5).is_empty(), "and does not wipe the snapshot");
+        let off = News::new(news.dir.clone());
+        off.logged_in();
+        assert!(off.settings().changes, "on by default");
     }
 }

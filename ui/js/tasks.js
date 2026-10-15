@@ -29,7 +29,7 @@ function renderTasks() {
       + (orphans.length ? `<div class="ls"><div class="lh" style="cursor:default"><div class="row"><span class="nm">Задания без урока</span></div></div>${orphans.map((h) => `<label class="hw${done[h.id] ? ' done' : ''}"><input type="checkbox" data-id="${esc(h.id)}"${done[h.id] ? ' checked' : ''}><span>${esc((h.subject_name ? h.subject_name + ': ' : '') + (h.description || ''))}${attHtml(h)}</span></label>`).join('')}</div>` : '');
     if (!body) body = `<div class="empty">${any ? 'Всё выполнено' : !rows.length ? (d.getDay() === 0 || d.getDay() === 6 ? 'Выходной день' : d > S.today ? 'Расписание ещё не опубликовано' : 'Уроков нет') : 'Заданий нет'}</div>`;
     const w = dayWord(d);
-    return `<section class="tk-day${sameDay(d, S.today) ? ' today' : ''}" aria-label="${esc(WD[d.getDay()])}, ${d.getDate()} ${esc(MON[d.getMonth()])}"><h3>${esc(WD[d.getDay()][0].toUpperCase() + WD[d.getDay()].slice(1))}, ${d.getDate()} ${esc(MON[d.getMonth()])}${w ? `<small>${w}</small>` : ''}</h3>${body}</section>`;
+    return `<section class="tk-day${sameDay(d, S.today) ? ' today' : ''}" aria-label="${esc(WD[d.getDay()])}, ${d.getDate()} ${esc(MON[d.getMonth()])}"><h3>${esc(WD[d.getDay()][0].toUpperCase() + WD[d.getDay()].slice(1))}, ${d.getDate()} ${esc(MON[d.getMonth()])}${w ? `<small>${w}</small>` : ''}${any ? `<button type="button" class="tk-copy" data-date="${esc(key)}" title="Скопировать задания этого дня одним текстом (для чата класса)">Копировать</button>` : ''}</h3>${body}</section>`;
   }).join('');
   $('tk-body').innerHTML = html || '<div class="gr-note">Нет данных за этот период.</div>';
   updateTasksSummary();
