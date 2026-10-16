@@ -18,16 +18,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Compare versions
+        # src-tauri/Cargo.toml is the only source; Tauri and Nix read it themselves, the Arch files are checked here.
         run: |
-          want="${GITHUB_REF_NAME#v}"
-          cargo=$(sed -n 's/^version = "\(.*\)"/\1/p' src-tauri/Cargo.toml | head -1)
-          tauri=$(sed -n 's/.*"version": "\(.*\)".*/\1/p' src-tauri/tauri.conf.json | head -1)
-          arch=$(sed -n 's/^pkgver=//p' packaging/arch/PKGBUILD)
-          nix=$(sed -n 's/^  version = "\(.*\)";/\1/p' packaging/nix/package.nix)
-          echo "tag=$want cargo=$cargo tauri=$tauri arch=$arch nix=$nix"
-          for v in "$cargo" "$tauri" "$arch" "$nix"; do
-            if [ "$v" != "$want" ] && [ "${GITHUB_REF_TYPE}" = "tag" ]; then echo "version mismatch: $v != $want"; exit 1; fi
-          done
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then packaging/version.sh --check "$GITHUB_REF_NAME"; else packaging/version.sh --check; fi
 
   bundle:
     needs: versions
@@ -60,7 +53,11 @@ jobs:
 
       - name: NASM (needed by aws-lc-rs on Windows)
         if: runner.os == 'Windows'
-        uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1
+        # Installed from Chocolatey: ilammy/setup-nasm still runs on the deprecated Node 20.
+        shell: pwsh
+        run: |
+          choco install nasm --no-progress -y
+          "C:\Program Files\NASM" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:

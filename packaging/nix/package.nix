@@ -1,5 +1,5 @@
 # The OpenSchool desktop client for Nix. Built from `src` (the flake passes its own checkout, which must include the `bridge`
-# submodule: `nix build '.?submodules=1'`); without `src` the tagged release is fetched from GitHub.
+# submodule: `nix build '.?submodules=1'`); without `src` the release tagged with this version is fetched from GitHub.
 { lib
 , rustPlatform
 , fetchFromGitHub
@@ -12,22 +12,28 @@
 , glib
 , dbus
 , libayatana-appindicator
-, src ? fetchFromGitHub {
+, src ? null
+}:
+
+let
+  # The one place the version is written: the app's Cargo.toml (next to this file in the repository).
+  version = (lib.importTOML ../../src-tauri/Cargo.toml).package.version;
+  source = if src != null then src else fetchFromGitHub {
     owner = "Xomel45";
     repo = "OpenSchool-Desktop";
-    rev = "v0.1.0";
+    rev = "v${version}";
     fetchSubmodules = true;
     # Run `nix build` once: it prints the real hash to put here.
     hash = lib.fakeHash;
-  }
-}:
+  };
+in
 
 rustPlatform.buildRustPackage {
   pname = "openschool";
-  version = "0.1.0";
+  inherit version;
 
-  inherit src;
-  cargoLock.lockFile = src + "/src-tauri/Cargo.lock";
+  src = source;
+  cargoLock.lockFile = source + "/src-tauri/Cargo.lock";
   cargoRoot = "src-tauri";
   buildAndTestSubdir = "src-tauri";
 

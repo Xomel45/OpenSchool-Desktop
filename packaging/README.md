@@ -7,7 +7,11 @@
 | `src-tauri/tauri.conf.json` → `bundle` | `deb`, `rpm`, `AppImage`, Windows `nsis`/`msi` через `cargo tauri build` | `deb`, `rpm`, `AppImage` собраны локально |
 | `packaging/openschool.desktop` | ярлык для сборок без Tauri-бандлера (Arch, Nix) | |
 
-Релиз делает `.github/workflows/release.yml` по тегу `v*`: он сверяет версии (Cargo.toml, tauri.conf.json, PKGBUILD, package.nix) с тегом,
+Версия пишется в одном месте: `src-tauri/Cargo.toml`. Tauri (в `tauri.conf.json` версии нет), сам бинарник и Nix (`package.nix` читает
+Cargo.toml) берут её оттуда сами. В `PKGBUILD` и `.SRCINFO` её вписывает `packaging/version.sh --sync`; `--check` проверяет.
+Новая версия: поменять `version` в `src-tauri/Cargo.toml`, `cargo check` (обновит Cargo.lock), `packaging/version.sh --sync`, коммит, тег `vX.Y.Z`.
+
+Релиз делает `.github/workflows/release.yml` по тегу `v*`: он сверяет тег и Arch-файлы с Cargo.toml (`packaging/version.sh --check`),
 собирает все пакеты и кладёт их в **черновик** релиза.
 
 Заметки из сборки:

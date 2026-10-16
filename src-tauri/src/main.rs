@@ -71,6 +71,8 @@ impl AppState {
 
 fn main() {
     diag::init();
+    // The User-Agent carries the app's version (src-tauri/Cargo.toml), the bridge adds its own; before any client is made.
+    openschool_bridge::set_app_version(env!("CARGO_PKG_VERSION").to_string());
     tauri::Builder::default()
         // Must be the first plugin: a second launch (a click on the shortcut while the window sits in the tray) only
         // brings the running instance forward, instead of starting a second background check and a second local server.
@@ -168,4 +170,16 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running OpenSchool");
+}
+
+#[cfg(test)]
+mod tests {
+    /// The version is written in Cargo.toml only: tauri.conf.json must not carry its own (Tauri then takes Cargo's).
+    #[test]
+    fn the_version_comes_from_cargo_toml_only() {
+        let conf: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json")).expect("tauri.conf.json");
+        assert!(conf.get("version").is_none(), "tauri.conf.json must not set a version");
+        let context: tauri::Context<tauri::Wry> = tauri::generate_context!();
+        assert_eq!(context.package_info().version.to_string(), env!("CARGO_PKG_VERSION"));
+    }
 }

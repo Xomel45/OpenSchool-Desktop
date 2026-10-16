@@ -1,7 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "OpenSchool",
-  "version": "0.1.0",
   "identifier": "io.github.xomel45.openschool",
   "build": {
     "frontendDist": "../ui"

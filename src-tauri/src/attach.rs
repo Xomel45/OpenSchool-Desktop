@@ -248,7 +248,7 @@ pub async fn download_material(app: AppHandle, state: State<'_, AppState>, link:
 pub async fn list_downloads(app: AppHandle) -> Result<Vec<Download>, String> {
     let file = list_file(&app)?;
     let mut list = blocking(move || with_list(&file, |l| l.clone())).await?.map_err(|e| e.to_string())?;
-    list.sort_by(|a, b| b.at.cmp(&a.at));
+    list.sort_by_key(|d| std::cmp::Reverse(d.at));
     Ok(list.iter().map(Download::from).collect())
 }
 

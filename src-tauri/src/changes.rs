@@ -108,7 +108,10 @@ pub fn changes(old: &Snapshot, new: &Snapshot, today: &str) -> Vec<Event> {
 mod tests {
     use super::*;
 
-    fn snap(days: &[(&str, &[(&str, &str, &str, &str)])]) -> Snapshot {
+    /// (id, subject, start, room)
+    type Lesson<'a> = (&'a str, &'a str, &'a str, &'a str);
+
+    fn snap(days: &[(&str, &[Lesson])]) -> Snapshot {
         days.iter().map(|(d, ls)| (d.to_string(), ls.iter().map(|(id, s, t, r)| LessonSnap { id: id.to_string(), subject: s.to_string(), start: t.to_string(), room: r.to_string() }).collect())).collect()
     }
 
