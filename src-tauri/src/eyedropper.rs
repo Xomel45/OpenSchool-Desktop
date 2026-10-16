@@ -15,6 +15,7 @@ pub fn available() -> bool {
 }
 
 /// KWin sends a colour as ARGB. Alpha 0 means "nothing was picked".
+#[cfg(any(target_os = "linux", test))]
 fn argb_to_hex(argb: u32) -> Option<String> {
     if argb >> 24 == 0 {
         return None;

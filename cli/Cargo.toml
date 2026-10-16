@@ -1,0 +1,33 @@
+[package]
+name = "openschool-cli"
+# No version of its own: the CLI ships with the app and reports the app's version (src-tauri/Cargo.toml, read in build.rs).
+edition = "2024"
+description = "OpenSchool in a terminal: schedule, homework and marks, with the session the desktop app saved"
+license = "MPL-2.0"
+repository = "https://github.com/Xomel45/OpenSchool-Desktop"
+publish = false
+
+[[bin]]
+name = "openschool"
+path = "src/main.rs"
+
+[dependencies]
+openschool_bridge = { path = "../bridge" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "time"] }
+chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
+dirs = "6"
+
+# The same secret store backends as the app (the session is read with the app's own src-tauri/src/store.rs).
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3", features = ["sync-secret-service", "crypto-rust"] }
+
+[target.'cfg(windows)'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true

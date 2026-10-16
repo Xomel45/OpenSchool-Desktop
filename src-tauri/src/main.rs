@@ -15,6 +15,7 @@ mod login;
 mod net;
 mod news;
 mod planner;
+mod smoke;
 mod store;
 mod tray;
 mod update;
@@ -73,6 +74,9 @@ fn main() {
     diag::init();
     // The User-Agent carries the app's version (src-tauri/Cargo.toml), the bridge adds its own; before any client is made.
     openschool_bridge::set_app_version(env!("CARGO_PKG_VERSION").to_string());
+    if std::env::args().any(|a| a == smoke::ARG) {
+        smoke::run(); // a check of the login window, not the app: see smoke.rs
+    }
     tauri::Builder::default()
         // Must be the first plugin: a second launch (a click on the shortcut while the window sits in the tray) only
         // brings the running instance forward, instead of starting a second background check and a second local server.

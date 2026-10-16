@@ -71,6 +71,7 @@ pub(crate) fn open_path(path: &Path) -> bool {
 }
 
 /// `file://` address of a path, every byte outside the plain set percent-encoded (for the file manager's D-Bus call).
+#[cfg(any(target_os = "linux", test))]
 fn file_uri(path: &Path) -> String {
     let mut out = String::from("file://");
     for &b in path.to_string_lossy().as_bytes() {

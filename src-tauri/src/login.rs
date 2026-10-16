@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use openschool_bridge::{login_url, Client, SessionCookie};
-use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 use crate::store;
 
@@ -38,11 +38,9 @@ pub fn forget_profile(app: &AppHandle) {
     }
 }
 
-pub async fn run(app: &AppHandle, client: Arc<Client>, direct: bool) -> Result<bool, String> {
-    if let Some(existing) = app.get_webview_window(LABEL) {
-        let _ = existing.set_focus();
-        return Ok(false);
-    }
+/// The login window: a plain browser on the diary (Gosuslugi sends it on to ESIA). `profile` is where it keeps its cookies;
+/// a hidden window is for the smoke test (`--login-smoke`).
+pub fn open_window(app: &AppHandle, direct: bool, profile: Option<std::path::PathBuf>, visible: bool) -> Result<WebviewWindow, String> {
     let start_url: Url = login_url().parse().map_err(|e| format!("bad login url: {e}"))?;
     // A remote page never gets our commands (Tauri rejects invoke from a non-local origin without an explicit `remote` capability,
     // and ours is for the "main" window only), so the login window is only a browser.
@@ -50,8 +48,9 @@ pub async fn run(app: &AppHandle, client: Arc<Client>, direct: bool) -> Result<b
     let first: Url = if cfg!(target_os = "linux") && direct { "about:blank".parse().map_err(|e| format!("{e}"))? } else { start_url.clone() };
     let mut builder = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::External(first))
         .title("OpenSchool: вход через Госуслуги")
-        .inner_size(480.0, 760.0);
-    if let Some(dir) = profile_dir(app) {
+        .inner_size(480.0, 760.0)
+        .visible(visible);
+    if let Some(dir) = profile {
         let _ = std::fs::create_dir_all(&dir);
         builder = builder.data_directory(dir);
     }
@@ -74,8 +73,16 @@ pub async fn run(app: &AppHandle, client: Arc<Client>, direct: bool) -> Result<b
             })
             .map_err(|e| e.to_string())?;
     }
-    #[cfg(not(target_os = "linux"))]
-    let _ = &window;
+    Ok(window)
+}
+
+pub async fn run(app: &AppHandle, client: Arc<Client>, direct: bool) -> Result<bool, String> {
+    if let Some(existing) = app.get_webview_window(LABEL) {
+        let _ = existing.set_focus();
+        return Ok(false);
+    }
+    let start_url: Url = login_url().parse().map_err(|e| format!("bad login url: {e}"))?;
+    open_window(app, direct, profile_dir(app), true)?;
 
     let started = Instant::now();
     let mut last_check: Option<Instant> = None;

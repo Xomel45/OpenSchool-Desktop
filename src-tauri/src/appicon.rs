@@ -7,7 +7,9 @@
 //! `~/.local/share/applications` (it wins over the system one). The copy carries a marker line: a file without the marker is somebody's
 //! own and is never touched, and choosing the default icon removes the copy again.
 
-use std::path::{Path, PathBuf};
+#[cfg(any(target_os = "linux", test))]
+use std::path::Path;
+use std::path::PathBuf;
 
 use tauri::image::Image;
 use tauri::{AppHandle, Manager};
@@ -29,7 +31,9 @@ const DEFAULT: &str = "graphite";
 /// Shown (and used) only in the developer mode; the choice is kept while the mode is off. (A test compares with `ui/js/icons.js`.)
 const DEV_ONLY: &[&str] = &["disc", "spark"];
 /// Names the installed `.desktop` file may have (the package, the Arch package, the Tauri bundle).
+#[cfg(any(target_os = "linux", test))]
 const DESKTOP_NAMES: &[&str] = &["openschool.desktop", "openschool_desktop.desktop", "OpenSchool.desktop"];
+#[cfg(any(target_os = "linux", test))]
 const MARKER: &str = "X-OpenSchool-Icon-Managed=true";
 
 fn bytes_of(id: &str) -> Option<&'static [u8]> {
